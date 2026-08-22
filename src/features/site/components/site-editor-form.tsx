@@ -392,7 +392,7 @@ function GiftCreationForm({ site, gifts }: { site: WeddingSiteEditorData; gifts:
                     amount: preset.amount,
                     quantityTotal: "1",
                     category: preset.category as GiftInput["category"],
-                    status: "draft",
+                    status: "active",
                     allowPartial: "on"
                   })
                 }
@@ -563,19 +563,33 @@ function GiftEditorCard({ site, giftItem }: { site: WeddingSiteEditorData; giftI
 function WeddingGuestCreationForm({ site }: { site: WeddingSiteEditorData }) {
   const createAction = createWeddingGuestAction.bind(null, site.id, site.coupleId);
   const [state, action] = useActionState(createAction, initialSiteEditorActionState);
+  const [isToastVisible, setIsToastVisible] = useState(false);
+
+  useEffect(() => {
+    if (!state.message) {
+      return;
+    }
+
+    setIsToastVisible(true);
+    const timeout = window.setTimeout(() => setIsToastVisible(false), 3800);
+
+    return () => window.clearTimeout(timeout);
+  }, [state.message, state.status]);
 
   return (
     <form action={action} className="grid gap-5 rounded-lg border bg-background p-5">
-      {state.message ? (
-        <p
+      {state.message && isToastVisible ? (
+        <div
+          role="status"
           className={
             state.status === "error"
-              ? "rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-              : "rounded-md border border-secondary/30 bg-secondary/10 px-4 py-3 text-sm text-secondary-foreground"
+              ? "fixed right-4 top-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-destructive/30 bg-destructive px-4 py-3 text-sm font-semibold text-destructive-foreground shadow-xl"
+              : "fixed right-4 top-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-xl"
           }
         >
-          {state.message}
-        </p>
+          {state.status === "error" ? <AlertCircle className="mt-0.5 size-4 shrink-0" /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0" />}
+          <span>{state.message}</span>
+        </div>
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-2">

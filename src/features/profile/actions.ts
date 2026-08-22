@@ -67,12 +67,15 @@ export async function updateProfileAction(
   }
 
   const normalizedAvatarUrl = parsed.data.avatarUrl || null;
-  const { error: profileError } = await supabase.from("profiles").upsert({
-    id: user.id,
-    email: parsed.data.email,
-    full_name: parsed.data.fullName,
-    avatar_url: normalizedAvatarUrl
-  });
+  const { error: profileError } = await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      email: parsed.data.email,
+      full_name: parsed.data.fullName,
+      avatar_url: normalizedAvatarUrl
+    },
+    { onConflict: "id" }
+  );
 
   if (profileError) {
     return {

@@ -1,7 +1,7 @@
 "use client";
 
-import { Send } from "lucide-react";
-import { useActionState } from "react";
+import { AlertCircle, CheckCircle2, Send } from "lucide-react";
+import { useActionState, useEffect, useState } from "react";
 
 import { SubmitButton } from "@/components/forms/submit-button";
 
@@ -26,21 +26,55 @@ function FieldError({ messages }: { messages?: string[] }) {
 export function RsvpForm({ siteId, siteSlug, guests }: RsvpFormProps) {
   const rsvpAction = createRsvpAction.bind(null, siteId, siteSlug);
   const [state, action] = useActionState(rsvpAction, initialSiteEditorActionState);
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const [guestName, setGuestName] = useState(state.fields?.guestName ?? "");
   const guestListId = `guest-list-${siteId}`;
   const hasGuests = guests.length > 0;
+  const canSuggestGuests = /^\S+\s+/.test(guestName);
+  const guestOptions = canSuggestGuests
+    ? guests.filter((guest) => guest.guestName.toLowerCase().includes(guestName.trim().toLowerCase()))
+    : [];
+
+  useEffect(() => {
+    if (!state.message) {
+      return;
+    }
+
+    setIsToastVisible(true);
+    const timeout = window.setTimeout(() => setIsToastVisible(false), 3800);
+
+    return () => window.clearTimeout(timeout);
+  }, [state.message, state.status]);
+
+  useEffect(() => {
+    if (state.status === "success") {
+      setGuestName("");
+      return;
+    }
+
+    if (state.fields?.guestName) {
+      setGuestName(state.fields.guestName);
+    }
+  }, [state.fields?.guestName, state.status]);
 
   return (
     <form action={action} className="grid gap-5 rounded-lg border bg-background p-5 shadow-sm">
-      {state.message ? (
-        <p
+      {state.message && isToastVisible ? (
+        <div
+          role="status"
           className={
             state.status === "error"
-              ? "rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-              : "rounded-md border border-secondary/30 bg-secondary/10 px-4 py-3 text-sm text-secondary-foreground"
+              ? "fixed right-4 top-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-destructive/30 bg-destructive px-4 py-3 text-sm font-semibold text-destructive-foreground shadow-xl"
+              : "fixed right-4 top-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-emerald-300 bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-xl"
           }
         >
-          {state.message}
-        </p>
+          {state.status === "error" ? (
+            <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          ) : (
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+          )}
+          <span>{state.message}</span>
+        </div>
       ) : null}
 
       <input name="guestCount" type="hidden" value="1" />
@@ -49,14 +83,15 @@ export function RsvpForm({ siteId, siteSlug, guests }: RsvpFormProps) {
         <input
           name="guestName"
           list={guestListId}
-          defaultValue={state.fields?.guestName}
+          value={guestName}
+          onChange={(event) => setGuestName(event.target.value)}
           className="h-11 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
           placeholder={hasGuests ? "Digite seu nome e escolha na lista" : "Lista de convidados ainda não cadastrada"}
           disabled={!hasGuests}
           required
         />
         <datalist id={guestListId}>
-          {guests.map((guest) => (
+          {guestOptions.map((guest) => (
             <option key={guest.id} value={guest.guestName}>
               {guest.expectedGuestCount > 1 ? `${guest.expectedGuestCount} pessoas` : "1 pessoa"}
             </option>
