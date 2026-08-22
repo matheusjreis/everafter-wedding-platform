@@ -50,3 +50,62 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes weddingPulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes weddingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loadingShimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes flipTick {
+  0% {
+    opacity: 0.82;
+    transform: perspective(600px) rotateX(-10deg) translateY(4px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: perspective(600px) rotateX(3deg) translateY(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: perspective(600px) rotateX(0deg) translateY(0);
+  }
+}

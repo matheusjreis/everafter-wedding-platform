@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { getPublicWeddingSite } from "@/features/site/data";
+import { WeddingCountdown } from "@/features/site/components/wedding-countdown";
 
 type WeddingSitePageProps = {
   params: Promise<{
@@ -22,6 +23,13 @@ function formatWeddingDate(value: string | null) {
     year: "numeric",
     timeZone: "America/Sao_Paulo"
   }).format(new Date(value));
+}
+
+function formatMoney(cents: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  }).format(cents / 100);
 }
 
 export default async function WeddingSitePage({ params }: WeddingSitePageProps) {
@@ -49,6 +57,7 @@ export default async function WeddingSitePage({ params }: WeddingSitePageProps) 
             {site.description || site.title}
           </p>
           <p className="mt-8 text-sm font-semibold uppercase tracking-[0.14em]">{formatWeddingDate(site.weddingDate)}</p>
+          <WeddingCountdown weddingDate={site.weddingDate} />
         </div>
       </section>
 
@@ -63,12 +72,20 @@ export default async function WeddingSitePage({ params }: WeddingSitePageProps) 
 
         <aside className="grid gap-4">
           <div className="rounded-lg border bg-card p-6 shadow-sm">
+            {site.ceremonyImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={site.ceremonyImageUrl} alt="" className="mb-5 aspect-video w-full rounded-md object-cover" />
+            ) : null}
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Cerimônia</p>
             <p className="mt-3 text-base leading-7 text-muted-foreground">
               {site.ceremonyLocation || "Local da cerimônia em breve."}
             </p>
           </div>
           <div className="rounded-lg border bg-card p-6 shadow-sm">
+            {site.receptionImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={site.receptionImageUrl} alt="" className="mb-5 aspect-video w-full rounded-md object-cover" />
+            ) : null}
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Recepção</p>
             <p className="mt-3 text-base leading-7 text-muted-foreground">
               {site.receptionLocation || "Local da recepção em breve."}
@@ -93,6 +110,31 @@ export default async function WeddingSitePage({ params }: WeddingSitePageProps) 
           </article>
         </div>
       </section>
+
+      {site.gifts.length ? (
+        <section className="container py-12">
+          <p className="text-sm font-medium uppercase tracking-[0.16em] text-primary">Lista de presentes</p>
+          <h2 className="mt-3 font-serif text-4xl leading-tight">Presentes simbólicos</h2>
+          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {site.gifts.map((gift) => (
+              <article key={gift.id} className="overflow-hidden rounded-lg border bg-card shadow-sm">
+                {gift.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={gift.imageUrl} alt="" className="aspect-[4/3] w-full object-cover" />
+                ) : null}
+                <div className="p-5">
+                  <p className="text-lg font-semibold">{gift.title}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{gift.description || "Presente simbólico."}</p>
+                  <p className="mt-4 text-base font-semibold text-primary">{formatMoney(gift.amountCents)}</p>
+                  <Button type="button" className="mt-4 w-full">
+                    Presentear em breve
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <footer className="container flex flex-col gap-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>Site criado no EverAfter.</span>

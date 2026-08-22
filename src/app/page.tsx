@@ -3,7 +3,9 @@ import type { Route } from "next";
 import Image from "next/image";
 import { CalendarHeart, CreditCard, GalleryHorizontal, Gift, Globe2, LockKeyhole, MessageSquare, Smartphone } from "lucide-react";
 
+import { BrandMark } from "@/components/brand/brand-mark";
 import { Button } from "@/components/ui/button";
+import { defaultWeddingImages } from "@/features/site/default-assets";
 import { getDictionary } from "@/lib/i18n/get-dictionary";
 
 export default function HomePage() {
@@ -12,13 +14,23 @@ export default function HomePage() {
   const signInHref = "/sign-in" as Route;
   const demoHref = "/wedding/demo" as Route;
   const featureIcons = [Globe2, Gift, CreditCard, MessageSquare, GalleryHorizontal, CalendarHeart, LockKeyhole, Smartphone];
+  const demoPanelImages = [
+    defaultWeddingImages.hero[0].value,
+    defaultWeddingImages.gift[0].value,
+    defaultWeddingImages.reception[0].value
+  ];
+  const templateImages = [
+    defaultWeddingImages.ceremony[0].value,
+    defaultWeddingImages.reception[0].value,
+    defaultWeddingImages.hero[0].value
+  ];
 
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-40 border-b bg-background/92 backdrop-blur">
         <nav className="container flex h-16 items-center justify-between gap-4" aria-label="Navegação principal">
           <Link href="/" className="font-serif text-2xl text-foreground">
-            {dictionary.common.brandName}
+            <BrandMark textClassName="text-foreground" />
           </Link>
           <div className="hidden items-center gap-7 text-sm font-medium text-muted-foreground md:flex">
             <a href="#examples" className="transition-colors hover:text-foreground">
@@ -91,18 +103,26 @@ export default function HomePage() {
               <h2 className="font-serif text-4xl leading-tight">{dictionary.marketing.demo.title}</h2>
               <p className="text-base leading-7 text-muted-foreground">{dictionary.marketing.demo.description}</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid self-start gap-4 sm:grid-cols-3">
               {dictionary.marketing.demo.metrics.map((metric) => (
-                <div key={metric.label} className="rounded-lg border bg-background p-5">
+                <div key={metric.label} className="flex min-h-32 flex-col justify-center rounded-lg border bg-background p-5">
                   <p className="font-serif text-4xl">{metric.value}</p>
                   <p className="mt-2 text-sm text-muted-foreground">{metric.label}</p>
                 </div>
               ))}
             </div>
             <div className="lg:col-span-2 grid gap-4 md:grid-cols-3">
-              {dictionary.marketing.demo.panels.map((panel) => (
+              {dictionary.marketing.demo.panels.map((panel, index) => (
                 <div key={panel} className="rounded-lg border bg-background p-5">
-                  <div className="mb-5 h-28 rounded-md border bg-muted" />
+                  <div className="relative mb-5 overflow-hidden rounded-md border bg-muted">
+                    <Image
+                      src={demoPanelImages[index] ?? defaultWeddingImages.hero[0].value}
+                      alt=""
+                      width={640}
+                      height={360}
+                      className="h-28 w-full object-cover"
+                    />
+                  </div>
                   <h3 className="text-base font-semibold">{panel}</h3>
                 </div>
               ))}
@@ -160,9 +180,17 @@ export default function HomePage() {
             <p className="text-base leading-7 text-muted-foreground">{dictionary.marketing.templates.description}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
-            {dictionary.marketing.templates.styles.map((style) => (
+            {dictionary.marketing.templates.styles.map((style, index) => (
               <article key={style} className="rounded-lg border bg-card p-5 shadow-sm">
-                <div className="h-36 rounded-md border bg-[linear-gradient(135deg,hsl(var(--muted)),hsl(var(--background)))]" />
+                <div className="relative overflow-hidden rounded-md border bg-muted">
+                  <Image
+                    src={templateImages[index] ?? defaultWeddingImages.hero[0].value}
+                    alt=""
+                    width={640}
+                    height={420}
+                    className="h-36 w-full object-cover"
+                  />
+                </div>
                 <h3 className="mt-4 text-base font-semibold">{style}</h3>
               </article>
             ))}

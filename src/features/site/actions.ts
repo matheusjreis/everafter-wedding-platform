@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-import { siteEditorSchema } from "./schemas";
+import { giftPresets } from "./default-assets";
+import { giftSchema, siteEditorSchema } from "./schemas";
 import type { SiteEditorActionState } from "./state";
 
 function getStringField(formData: FormData, key: string) {
@@ -50,6 +51,25 @@ function mapSiteEditorError(message?: string) {
   return "Não foi possível salvar o site. Tente novamente.";
 }
 
+function toAmountCents(value: string) {
+  return Math.round(Number(value.replace(",", ".")) * 100);
+}
+
+function toOptionalInteger(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function getGiftPreset(formData: FormData) {
+  const presetId = getStringField(formData, "presetId");
+
+  return giftPresets.find((preset) => preset.id === presetId);
+}
+
 export async function updateWeddingSiteAction(
   siteId: string,
   _state: SiteEditorActionState,
@@ -64,6 +84,8 @@ export async function updateWeddingSiteAction(
     "story",
     "ceremonyLocation",
     "receptionLocation",
+    "ceremonyImageUrl",
+    "receptionImageUrl",
     "rsvpNote",
     "giftNote",
     "status"
@@ -77,6 +99,8 @@ export async function updateWeddingSiteAction(
     story: getStringField(formData, "story"),
     ceremonyLocation: getStringField(formData, "ceremonyLocation"),
     receptionLocation: getStringField(formData, "receptionLocation"),
+    ceremonyImageUrl: getStringField(formData, "ceremonyImageUrl"),
+    receptionImageUrl: getStringField(formData, "receptionImageUrl"),
     rsvpNote: getStringField(formData, "rsvpNote"),
     giftNote: getStringField(formData, "giftNote"),
     status: getStringField(formData, "status")
@@ -113,6 +137,8 @@ export async function updateWeddingSiteAction(
       story: emptyToNull(parsed.data.story),
       ceremony_location: emptyToNull(parsed.data.ceremonyLocation),
       reception_location: emptyToNull(parsed.data.receptionLocation),
+      ceremony_image_url: emptyToNull(parsed.data.ceremonyImageUrl),
+      reception_image_url: emptyToNull(parsed.data.receptionImageUrl),
       rsvp_note: emptyToNull(parsed.data.rsvpNote),
       gift_note: emptyToNull(parsed.data.giftNote)
     })
@@ -134,5 +160,83 @@ export async function updateWeddingSiteAction(
     status: "success",
     message: "Site salvo com sucesso.",
     fields
+  };
+}
+
+export async function createGiftAction(
+  siteId: string,
+  coupleId: string,
+  _state: SiteEditorActionState,
+  formData: FormData
+): Promise<SiteEditorActionState> {
+  const fields = createFieldSnapshot(formData, [
+    "title",
+    "description",
+    "imageUrl",
+    "amount",
+    "quantityTotal",
+    "category",
+    "status",
+    "allowPartial"
+  ]);
+  const preset = getGiftPreset(formData);
+  const parsed = giftSchema.safeParse({
+    title: getStringField(formData, "title") || preset?.title || "",
+    description: getStringField(formData, "description") || preset?.description || "",
+    imageUrl: getStringField(formData, "imageUrl") || preset?.imageUrl || "",
+    amount: getStringField(formData, "amount") || preset?.amount || "",
+    quantityTotal: getStringField(formData, "quantityTotal"),
+    category: getStringField(formData, "category") || preset?.category || "custom",
+    status: getStringField(formData, "status") || "draft",
+    allowPartial: getStringField(formData, "allowPartial") || "off"
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "Revise os campos destacados do presente.",
+      fields,
+      fieldErrors: parsed.error.flatten().fieldErrors
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect("/sign-in" as Route);
+  }
+
+  const { error } = await supabase.from("gifts").insert({
+    couple_id: coupleId,
+    site_id: siteId,
+    title: parsed.data.title,
+    description: emptyToNull(parsed.data.description),
+    image_url: emptyToNull(parsed.data.imageUrl),
+    amount_cents: toAmountCents(parsed.data.amount),
+    quantity_total: toOptionalInteger(parsed.data.quantityTotal),
+    category: parsed.data.category,
+    status: parsed.data.status,
+    allow_partial: parsed.data.allowPartial === "on"
+  });
+
+  if (error) {
+    return {
+      status: "error",
+      message: mapSiteEditorError(error.message),
+      fields
+    };
+  }
+
+  revalidatePath(`/dashboard/site/${siteId}/editor`);
+  revalidatePath("/dashboard");
+
+  return {
+    status: "success",
+    message: "Presente cadastrado com sucesso.",
+    fields: {}
   };
 }

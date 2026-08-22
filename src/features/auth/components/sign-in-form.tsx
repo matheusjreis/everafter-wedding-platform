@@ -5,6 +5,7 @@ import type { Route } from "next";
 import { useActionState } from "react";
 
 import { SubmitButton } from "@/components/forms/submit-button";
+import { PasswordInput } from "@/components/forms/password-input";
 import { signInAction } from "@/features/auth/actions";
 import { initialAuthActionState } from "@/features/auth/state";
 
@@ -41,13 +42,11 @@ export function SignInForm() {
             Esqueci minha senha
           </Link>
         </div>
-        <input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete="current-password"
           required
-          className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none ring-offset-background transition focus-visible:ring-2 focus-visible:ring-ring"
         />
         {state.fieldErrors?.password ? (
           <p className="text-sm text-destructive">{state.fieldErrors.password[0]}</p>

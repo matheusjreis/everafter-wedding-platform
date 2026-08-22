@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { siteEditorSchema } from "@/features/site/schemas";
+import { giftSchema, siteEditorSchema } from "@/features/site/schemas";
 
 describe("siteEditorSchema", () => {
   it("aceita conteúdo válido para o editor", () => {
@@ -13,6 +13,8 @@ describe("siteEditorSchema", () => {
       story: "Tudo começou em uma conversa simples.",
       ceremonyLocation: "Capela Central",
       receptionLocation: "Salão Jardim",
+      ceremonyImageUrl: "/images/defaults/ceremony-chapel-default.png",
+      receptionImageUrl: "/images/defaults/reception-hall-default.png",
       rsvpNote: "Confirme sua presença até novembro.",
       giftNote: "Sua presença é nosso maior presente.",
       status: "published"
@@ -31,11 +33,28 @@ describe("siteEditorSchema", () => {
       story: "",
       ceremonyLocation: "",
       receptionLocation: "",
+      ceremonyImageUrl: "",
+      receptionImageUrl: "",
       rsvpNote: "",
       giftNote: "",
       status: "draft"
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("aceita imagem padrão interna para presente", () => {
+    const result = giftSchema.safeParse({
+      title: "Cota para a lua de mel",
+      description: "Ajude o casal a viver uma experiência especial.",
+      imageUrl: "/images/defaults/gift-symbolic-default.png",
+      amount: "300,00",
+      quantityTotal: "",
+      category: "travel",
+      status: "active",
+      allowPartial: "on"
+    });
+
+    expect(result.success).toBe(true);
   });
 });

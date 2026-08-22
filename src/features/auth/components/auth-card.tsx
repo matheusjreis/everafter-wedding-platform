@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { BrandMark } from "@/components/brand/brand-mark";
+
 type AuthCardProps = {
   eyebrow: string;
   title: string;
@@ -15,7 +17,7 @@ export function AuthCard({ eyebrow, title, description, children, footer }: Auth
       <div className="mx-auto grid w-full max-w-5xl overflow-hidden rounded-lg border bg-card shadow-sm lg:grid-cols-[0.9fr_1.1fr]">
         <section className="bg-foreground p-8 text-background sm:p-10">
           <Link href="/" className="font-serif text-2xl">
-            EverAfter
+            <BrandMark imageClassName="bg-background/90" textClassName="text-background" />
           </Link>
           <div className="mt-16 space-y-4">
             <p className="text-sm font-medium uppercase tracking-[0.16em] text-accent">{eyebrow}</p>

@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     "Plataforma multi-tenant para sites de casamento com lista de presentes, pagamentos online, RSVP e painéis personalizáveis para casais.",
   metadataBase: new URL("http://localhost:3000"),
   icons: {
-    icon: "/icon.svg"
+    icon: "/icon.png"
   }
 };
 

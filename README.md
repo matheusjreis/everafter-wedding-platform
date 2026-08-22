@@ -1,5 +1,7 @@
 # EverAfter
 
+![Marca do EverAfter](public/images/everafter-mark.png)
+
 EverAfter é uma plataforma SaaS multi-tenant para criação e gestão de sites personalizados de casamento.
 
 Cada casal pode criar uma conta, configurar seu site público, divulgar informações do casamento, publicar fotos, gerenciar uma lista de presentes simbólicos, receber confirmações de presença e acompanhar pagamentos pelo painel.
@@ -18,7 +20,9 @@ Cada casal pode criar uma conta, configurar seu site público, divulgar informa�
 * História do casal;
 * Eventos, locais e mapa;
 * Galeria de fotos;
+* Fotos padrão para acelerar a criação do site;
 * Lista de presentes simbólicos;
+* Presentes comuns pré-cadastráveis;
 * Pagamentos online com Pix e cartão, após escolha do provedor;
 * RSVP;
 * Mensagens dos convidados;
@@ -144,6 +148,8 @@ Implementado até agora:
 * landing page institucional inicial;
 * rotas placeholder para cadastro e demonstração;
 * abstrações iniciais para Supabase e pagamentos;
+* editor inicial com upload de imagens, imagens padrão e presentes comuns;
+* evento padrão criado no onboarding com textos, fotos e presentes simbólicos iniciais;
 * Vitest, React Testing Library, Playwright, ESLint e build configurados;
 * `.env.example` versionado e arquivos locais de ambiente ignorados pelo Git.
 
@@ -223,6 +229,18 @@ Rotas já implementadas:
 * `/settings/profile`: edição de nome, e-mail e URL da foto de perfil;
 * `/dashboard/site/[siteId]/editor`: editor inicial do site do casamento;
 * `/wedding/[slug]`: prévia pública/dinâmica do site do casamento.
+
+O editor usa o bucket público `wedding-media` do Supabase Storage para imagens enviadas do computador. O bucket e as policies são criados por migration.
+
+O onboarding cria um evento inicial com textos editáveis, fotos padrão e presentes simbólicos comuns. As imagens padrão ficam em `public/images/defaults` e podem ser escolhidas sem upload.
+
+Autocomplete de localização estilo Uber é possível, mas exige provedor externo. Opções recomendadas:
+
+* Google Places API;
+* Mapbox Search/Geocoding;
+* HERE Geocoding.
+
+As chaves devem ficar em `.env.local`, por exemplo `NEXT_PUBLIC_GOOGLE_PLACES_API_KEY` ou `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`, nunca no repositório.
 
 ## Deploy
 

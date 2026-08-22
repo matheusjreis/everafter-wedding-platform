@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { SiteEditorForm } from "@/features/site/components/site-editor-form";
-import { getEditableWeddingSite } from "@/features/site/data";
+import { getEditableGifts, getEditableWeddingSite } from "@/features/site/data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type SiteEditorPageProps = {
@@ -31,6 +31,8 @@ export default async function SiteEditorPage({ params }: SiteEditorPageProps) {
     notFound();
   }
 
+  const gifts = await getEditableGifts(site.id);
+
   return (
     <main className="min-h-screen bg-background">
       <section className="container py-10">
@@ -54,7 +56,7 @@ export default async function SiteEditorPage({ params }: SiteEditorPageProps) {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
           <div className="rounded-lg border bg-card p-6 shadow-sm sm:p-8">
-            <SiteEditorForm site={site} />
+            <SiteEditorForm site={site} gifts={gifts} />
           </div>
           <aside className="rounded-lg border bg-card p-6 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Prévia rápida</p>
