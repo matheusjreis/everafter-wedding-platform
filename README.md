@@ -10,6 +10,28 @@ Cada casal pode criar uma conta, configurar seu site público, divulgar informa�
 
 ![Prévia da landing page do EverAfter](public/images/everafter-readme-hero.png)
 
+## Prévia
+
+### Acesso do casal
+
+![Tela de login do painel do casal](public/images/everafter-readme-sign-in.png)
+
+### Site público do casamento
+
+![Prévia do site público do casamento](public/images/everafter-readme-public-site.png)
+
+### Confirmação de presença
+
+![Prévia do formulário de confirmação de presença](public/images/everafter-readme-rsvp.png)
+
+### Lista pública de presentes
+
+![Prévia da lista pública de presentes](public/images/everafter-readme-public-gifts.png)
+
+### Perfil do casal
+
+![Prévia da edição de perfil do casal](public/images/everafter-readme-profile.png)
+
 ## Funcionalidades
 
 * Landing page institucional;
