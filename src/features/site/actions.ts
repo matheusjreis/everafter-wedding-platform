@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 import { getDefaultGiftImage, giftPresets } from "./default-assets";
-import { giftSchema, rsvpSchema, siteEditorSchema, weddingGuestSchema } from "./schemas";
+import { dashboardSiteSettingsSchema, giftSchema, rsvpSchema, siteEditorSchema, weddingGuestSchema } from "./schemas";
 import type { SiteEditorActionState } from "./state";
 
 type PublicWeddingGuestOptionRow = {
@@ -171,6 +171,71 @@ export async function updateWeddingSiteAction(
   return {
     status: "success",
     message: "Site salvo com sucesso.",
+    fields
+  };
+}
+
+export async function updateDashboardSiteSettingsAction(
+  siteId: string,
+  currentSlug: string,
+  _state: SiteEditorActionState,
+  formData: FormData
+): Promise<SiteEditorActionState> {
+  const fields = createFieldSnapshot(formData, ["slug", "weddingDate", "status"]);
+  const parsed = dashboardSiteSettingsSchema.safeParse({
+    slug: getStringField(formData, "slug"),
+    weddingDate: getStringField(formData, "weddingDate"),
+    status: getStringField(formData, "status")
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "Revise o endereço, a data e o status do site.",
+      fields,
+      fieldErrors: parsed.error.flatten().fieldErrors
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect("/sign-in" as Route);
+  }
+
+  const { error } = await supabase
+    .from("wedding_sites")
+    .update({
+      slug: parsed.data.slug,
+      wedding_date: toWeddingDate(parsed.data.weddingDate),
+      status: parsed.data.status
+    })
+    .eq("id", siteId);
+
+  if (error) {
+    return {
+      status: "error",
+      message: mapSiteEditorError(error.message),
+      fields
+    };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/wedding/${currentSlug}`);
+  revalidatePath(`/wedding/${parsed.data.slug}`);
+
+  return {
+    status: "success",
+    message:
+      parsed.data.status === "published"
+        ? "Site publicado com sucesso."
+        : parsed.data.status === "unpublished"
+          ? "Site saiu do ar. O endereço público agora retorna 404."
+          : "Site salvo como rascunho.",
     fields
   };
 }

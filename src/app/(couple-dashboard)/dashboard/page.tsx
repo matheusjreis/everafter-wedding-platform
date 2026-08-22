@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { signOutAction } from "@/features/auth/actions";
 import { getCurrentCouple } from "@/features/onboarding/data";
 import { getCurrentProfile } from "@/features/profile/data";
+import { DashboardSiteCard } from "@/features/site/components/dashboard-site-card";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
@@ -31,17 +32,7 @@ export default async function DashboardPage() {
 
   const profile = await getCurrentProfile(user.id);
 
-  const siteHref = couple.site ? (`/wedding/${couple.site.slug}` as Route) : null;
-  const editorHref = couple.site ? (`/dashboard/site/${couple.site.id}/editor` as Route) : null;
   const profileHref = "/settings/profile" as Route;
-  const weddingDate = couple.site?.weddingDate
-    ? new Intl.DateTimeFormat("pt-BR", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-        timeZone: "America/Sao_Paulo"
-      }).format(new Date(couple.site.weddingDate))
-    : "Data não definida";
 
   return (
     <main className="min-h-screen bg-background">
@@ -74,38 +65,7 @@ export default async function DashboardPage() {
           </div>
         </div>
         <div className="grid gap-4 py-8">
-          <article className="rounded-lg border bg-card p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Site em rascunho</p>
-            <h2 className="mt-4 text-2xl font-semibold">{couple.site?.title ?? "Site do casamento"}</h2>
-            <dl className="mt-6 grid gap-4 sm:grid-cols-3">
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Status</dt>
-                <dd className="mt-2 text-sm font-semibold">
-                  {couple.site?.status === "published" ? "Publicado" : "Rascunho"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Data</dt>
-                <dd className="mt-2 text-sm font-semibold">{weddingDate}</dd>
-              </div>
-              <div>
-                <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">Endereço</dt>
-                <dd className="mt-2 text-sm font-semibold">{couple.site ? `/wedding/${couple.site.slug}` : "Pendente"}</dd>
-              </div>
-            </dl>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              {siteHref ? (
-                <Button asChild>
-                  <a href={siteHref}>Ver prévia pública</a>
-                </Button>
-              ) : null}
-              {editorHref ? (
-                <Button asChild variant="outline">
-                  <Link href={editorHref}>Abrir editor</Link>
-                </Button>
-              ) : null}
-            </div>
-          </article>
+          {couple.site ? <DashboardSiteCard site={couple.site} /> : null}
         </div>
       </section>
     </main>

@@ -196,7 +196,7 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
     .eq("slug", slug)
     .maybeSingle();
 
-  if (error || !site || site.status === "archived") {
+  if (error || !site || site.status !== "published") {
     return null;
   }
 

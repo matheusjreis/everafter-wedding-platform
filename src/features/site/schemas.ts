@@ -61,6 +61,20 @@ export const siteEditorSchema = z.object({
 
 export type SiteEditorInput = z.infer<typeof siteEditorSchema>;
 
+export const dashboardSiteSettingsSchema = z.object({
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, "Informe um endereço com pelo menos 3 caracteres.")
+    .max(80, "Use no máximo 80 caracteres.")
+    .regex(slugRegex, "Use apenas letras minúsculas, números e hífens entre palavras."),
+  weddingDate: z.string().trim().optional(),
+  status: z.enum(["draft", "published", "unpublished"])
+});
+
+export type DashboardSiteSettingsInput = z.infer<typeof dashboardSiteSettingsSchema>;
+
 export const giftSchema = z.object({
   title: z
     .string()
