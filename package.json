@@ -1,0 +1,52 @@
+{
+  "name": "everafter-wedding-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma multi-tenant para sites de casamento com lista de presentes, pagamentos online, RSVP e painéis personalizáveis para casais.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "5.9.1",
+    "@radix-ui/react-slot": "1.3.3",
+    "@supabase/ssr": "0.7.0",
+    "@supabase/supabase-js": "2.75.0",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.33.0",
+    "next": "16.3.2",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "react-hook-form": "7.86.0",
+    "tailwind-merge": "3.6.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@testing-library/jest-dom": "6.8.0",
+    "@testing-library/react": "16.3.2",
+    "@testing-library/user-event": "14.6.6",
+    "@types/node": "20.17.57",
+    "@types/react": "19.1.12",
+    "@types/react-dom": "19.1.9",
+    "@vitejs/plugin-react": "4.7.0",
+    "autoprefixer": "10.4.23",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.2",
+    "jsdom": "26.1.0",
+    "postcss": "8.5.26",
+    "tailwindcss": "3.4.17",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  },
+  "engines": {
+    "node": ">=20.17.0"
+  }
+}

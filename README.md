@@ -1,260 +1,247 @@
 # EverAfter
 
-EverAfter is a multi-tenant SaaS platform that allows couples to create and manage personalized wedding websites.
+EverAfter é uma plataforma SaaS multi-tenant para criação e gestão de sites personalizados de casamento.
 
-Each couple can create an account, customize their public website, share wedding details, upload photos, manage a symbolic gift registry, collect RSVP responses, and track payments made by their guests.
+Cada casal pode criar uma conta, configurar seu site público, divulgar informações do casamento, publicar fotos, gerenciar uma lista de presentes simbólicos, receber confirmações de presença e acompanhar pagamentos pelo painel.
 
-Guests can access the public wedding website without creating an account. They can view the wedding countdown, browse event details, open the venue location, confirm their attendance, select a gift, leave a personal message, and complete a payment using supported payment methods.
+> Plataforma multi-tenant para sites de casamento com lista de presentes, pagamentos online, RSVP e painéis personalizáveis para casais.
 
-## Key Features
+![Prévia da landing page do EverAfter](public/images/everafter-readme-hero.png)
 
-* Couple registration and authentication;
-* Personalized wedding websites;
-* Unique public URL for each wedding;
-* Wedding countdown timer;
-* Ceremony and reception details;
-* Venue information and map integration;
-* Photo gallery;
-* Symbolic gift registry;
-* Online payments through Pix and credit cards;
-* RSVP management;
-* Guest messages;
-* Couple management dashboard;
-* Platform administration dashboard;
-* Payment and payout tracking;
-* Customizable wedding themes;
-* Mobile-first responsive design;
-* Multi-tenant data isolation;
-* Role-based access control;
-* Secure payment webhook processing;
-* Deployment on Vercel.
+## Funcionalidades
 
-## User Roles
+* Landing page institucional;
+* Cadastro, login e recuperação de senha;
+* Site público personalizado para cada casal;
+* URL amigável para o casamento;
+* Contador regressivo;
+* História do casal;
+* Eventos, locais e mapa;
+* Galeria de fotos;
+* Lista de presentes simbólicos;
+* Pagamentos online com Pix e cartão, após escolha do provedor;
+* RSVP;
+* Mensagens dos convidados;
+* Painel do casal;
+* Painel administrativo da plataforma;
+* Isolamento multi-tenant;
+* Segurança em Nível de Linha (RLS) no Supabase;
+* Experiência mobile-first;
+* Deploy planejado na Vercel.
 
-### Platform Administrator
+## Perfis
 
-Platform administrators can:
+### Administrador da plataforma
 
-* Manage registered couples;
-* Review published and unpublished websites;
-* Suspend or reactivate accounts;
-* Manage wedding templates;
-* Monitor transactions and payouts;
-* Configure platform fees and plans;
-* Review webhook failures;
-* Access audit logs and platform metrics.
+Pode acompanhar casais, sites, transações, repasses, taxas, planos, falhas de webhook e logs de auditoria. Ações sensíveis devem ser auditadas.
 
-### Couple
+### Administrador do casal
 
-Couples can:
+Pode criar e editar o site do casamento, gerenciar eventos, galeria, presentes, RSVP, mensagens, pagamentos, aparência e publicação. Cada casal acessa somente seus próprios dados.
 
-* Create and manage an account;
-* Configure their wedding website;
-* Add wedding dates, times, and locations;
-* Customize colors, fonts, images, and sections;
-* Upload photos;
-* Create and manage a gift registry;
-* Review RSVP responses;
-* Track received gifts and payments;
-* Manage payout information;
-* Publish or unpublish their website.
+### Convidado
 
-Each couple can only access data belonging to their own account and wedding.
+Não precisa criar conta. Pode acessar sites publicados, confirmar presença, consultar presentes, realizar pagamento e deixar mensagem.
 
-### Guest
-
-Guests do not need an account to visit a public wedding website.
-
-Guests can:
-
-* View wedding information;
-* Follow the wedding countdown;
-* Browse the photo gallery;
-* Open the venue location;
-* Confirm their attendance;
-* Browse the gift registry;
-* Purchase a symbolic gift;
-* Leave a personal message;
-* Receive payment confirmation.
-
-## Technology Stack
-
-### Frontend
+## Stack
 
 * React;
-* Next.js;
-* TypeScript;
+* Next.js com App Router;
+* TypeScript estrito;
 * Tailwind CSS;
 * shadcn/ui;
-* React Hook Form;
-* Zod.
-
-### Backend and Database
-
 * Supabase;
 * PostgreSQL;
 * Supabase Auth;
 * Supabase Storage;
-* Row Level Security;
-* Next.js Server Actions and API routes.
+* Segurança em Nível de Linha (RLS);
+* React Hook Form;
+* Zod;
+* Vitest;
+* React Testing Library;
+* Playwright;
+* Vercel.
 
-### Payments
+## Arquitetura
 
-The platform is designed to integrate with a trusted payment provider that supports the Brazilian market.
+O EverAfter usa uma arquitetura multi-tenant. O isolamento entre casais não deve depender de filtros no frontend.
 
-The final provider will be selected based on support for:
+As garantias de isolamento serão feitas por:
 
-* Pix;
-* Credit cards;
-* Secure hosted checkout or tokenization;
-* Payment webhooks;
-* Refunds;
-* Chargebacks;
-* Connected accounts or subaccounts;
-* Platform fees;
-* Payouts;
-* Identity verification and KYC requirements.
+* Supabase Auth;
+* PostgreSQL RLS;
+* políticas de Storage;
+* autorização no servidor;
+* validação de entradas;
+* constraints e relacionamentos do banco;
+* testes automatizados de autorização.
 
-The application does not store complete credit card details.
+Operações sensíveis sempre devem ser validadas no servidor. O navegador nunca é fonte confiável para preço de presente, dono do recurso, status de pagamento, comissão ou valor líquido.
 
-### Infrastructure
+## Fluxo financeiro
 
-* Vercel;
-* Supabase Cloud;
-* Environment-based configuration;
-* Version-controlled database migrations;
-* Automated testing and deployment workflows.
+O MVP começa com uma abstração de pagamento e um provedor mockado. A integração real será decidida após avaliação formal de Mercado Pago, Pagar.me, Asaas e Stripe.
 
-## Architecture
+Fluxo esperado:
 
-EverAfter follows a multi-tenant architecture. Multiple couples can use the same platform while their accounts, wedding websites, guests, gifts, payments, and files remain fully isolated.
+1. O convidado escolhe um presente;
+2. O backend consulta o preço real no banco;
+3. O backend cria a transação;
+4. O provedor cria o checkout;
+5. O convidado realiza o pagamento;
+6. O provedor envia webhook assinado;
+7. O backend valida a assinatura;
+8. O webhook é processado com idempotência;
+9. A transação é atualizada;
+10. O presente recebido aparece no painel do casal.
 
-Tenant isolation is enforced through:
+O EverAfter não armazena dados completos de cartão.
 
-* Supabase authentication;
-* PostgreSQL Row Level Security policies;
-* Server-side authorization;
-* Role-based access control;
-* Secure storage policies;
-* Input validation;
-* Automated authorization tests.
+## Mobile-first
 
-Sensitive operations are always validated on the server. Client-provided identifiers, prices, payment statuses, and ownership information are never considered trusted.
+O produto é pensado primeiro para celular, já que muitos convidados acessarão o site por links enviados pelo WhatsApp.
 
-## Payment Flow
+As principais telas devem ser validadas em larguras como 320, 360, 375, 390, 412, 768, 1024 e 1280 px.
 
-The gift registry contains symbolic gifts. Guests select a gift, while the couple receives the corresponding monetary value after payment provider fees and any applicable platform commission.
+## Segurança
 
-The expected payment flow is:
+Segurança é critério de aceite, não melhoria futura.
 
-1. A guest selects a gift;
-2. The backend retrieves the official price from the database;
-3. A payment is created through the selected provider;
-4. The guest completes the payment;
-5. The provider sends a signed webhook;
-6. The backend validates and processes the event;
-7. The transaction is updated idempotently;
-8. The gift appears in the couple's dashboard;
-9. The guest receives a confirmation;
-10. The platform records the gross amount, provider fee, platform fee, net amount, and payout status.
+O projeto deve proteger contra:
 
-Repeated webhook events must never create duplicate gifts, transactions, or credits.
+* vazamento entre tenants;
+* IDOR;
+* elevação de privilégios;
+* alteração de preço pelo navegador;
+* webhook falso ou duplicado;
+* exposição de chaves;
+* XSS;
+* CSRF;
+* upload inseguro;
+* acesso público a sites não publicados.
 
-## Mobile-First Experience
+## Privacidade
 
-EverAfter is designed with a mobile-first approach because most guests are expected to access wedding websites through links shared on WhatsApp or social media.
+O projeto deve seguir princípios da LGPD:
 
-All public and administrative pages are optimized for:
+* coleta mínima;
+* finalidade clara;
+* proteção de dados dos convidados;
+* retenção adequada;
+* exclusão e exportação de dados;
+* auditoria de ações administrativas.
 
-* Smartphones;
-* Tablets;
-* Desktop devices;
-* Touch interaction;
-* Mobile checkout;
-* Pix payments;
-* Accessible navigation;
-* Responsive images;
-* Modern mobile browsers.
+## Status do projeto
 
-The main flows are tested across multiple viewport sizes, starting at 320 pixels wide.
+O EverAfter está em desenvolvimento e faz parte de um portfólio.
 
-## Security
+Implementado até agora:
 
-Security is treated as a core product requirement.
+* plano técnico inicial em `docs/technical-plan.md`;
+* fundação Next.js com TypeScript estrito;
+* Tailwind CSS e configuração compatível com shadcn/ui;
+* dicionário de textos em português preparado para i18n;
+* landing page institucional inicial;
+* rotas placeholder para cadastro e demonstração;
+* abstrações iniciais para Supabase e pagamentos;
+* Vitest, React Testing Library, Playwright, ESLint e build configurados;
+* `.env.example` versionado e arquivos locais de ambiente ignorados pelo Git.
 
-The platform includes:
+## Desenvolvimento local
 
-* Multi-tenant data isolation;
-* Row Level Security;
-* Server-side authorization;
-* Role-based permissions;
-* Secure authentication flows;
-* Payment webhook signature validation;
-* Idempotent financial operations;
-* Rate limiting;
-* Input validation and sanitization;
-* Secure file upload policies;
-* Audit logging;
-* Secret management through environment variables;
-* Protection against common OWASP vulnerabilities;
-* Automated security and authorization tests.
+### Pré-requisitos
 
-No sensitive credentials or private API keys are exposed to the browser.
+* Node.js 20.17 ou superior;
+* npm 10 ou superior;
+* projeto Supabase nas próximas fases de backend.
 
-## Privacy
+### Instalação
 
-The platform is designed with privacy and LGPD principles in mind, including:
+```bash
+npm install
+```
 
-* Data minimization;
-* Purpose-based data collection;
-* Account deletion workflows;
-* Personal data export;
-* Configurable data retention;
-* Guest data protection;
-* Secure storage;
-* Auditability of administrative operations.
+### Variáveis de ambiente
 
-## Project Status
+Copie `.env.example` para `.env.local` e preencha os valores localmente.
 
-EverAfter is currently under development.
+```bash
+cp .env.example .env.local
+```
 
-The initial MVP includes:
+Nunca comite chaves reais do Supabase, segredos de pagamento, URLs de banco ou segredos de webhook.
 
-* Couple registration and authentication;
-* Wedding website creation;
-* Public wedding pages;
-* Countdown timer;
-* Event and venue details;
-* Photo gallery;
-* Gift registry;
-* RSVP management;
-* Payment integration;
-* Couple dashboard;
-* Basic platform administration;
-* Multi-tenant data isolation;
-* Responsive mobile experience;
-* Vercel deployment.
+Somente variáveis `NEXT_PUBLIC_*` podem ser expostas ao navegador. `SUPABASE_SERVICE_ROLE_KEY`, segredos de pagamento, segredos de webhook e `DATABASE_URL` são somente servidor.
 
-## Future Improvements
+### Rodando localmente
 
-* Multiple wedding templates;
-* Custom domains;
-* Subscription plans;
-* Advanced website editor;
-* Multiple managers per wedding;
-* Email notifications;
-* WhatsApp integration;
-* Collaborative photo albums;
-* Digital guestbook;
-* Advanced guest management;
-* Analytics and financial reports;
-* International payment methods;
-* Multiple languages and currencies.
+```bash
+npm run dev
+```
 
-## Getting Started
+A aplicação fica disponível em `http://localhost:3000`.
 
-Installation, environment configuration, database setup, migrations, and local development instructions will be added as the implementation evolves.
+### Qualidade
 
-## Disclaimer
+```bash
+npm run typecheck
+npm run lint
+npm run test
+npm run build
+```
 
-EverAfter is a portfolio project currently under development. Payment processing features must use official provider APIs, comply with provider requirements, and follow all applicable financial, privacy, and security regulations.
+Para testes E2E:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+## Supabase
+
+As migrations versionadas estão em `supabase/migrations`. Elas criam a base multi-tenant, as políticas RLS e a RPC transacional usada no onboarding inicial do casal.
+
+Depois de conferir que as variáveis em `.env.local` apontam para o projeto correto, vincule o projeto e aplique as migrations:
+
+```bash
+supabase link --project-ref SEU_PROJECT_REF
+supabase db push
+```
+
+Se a CLI do Supabase não estiver instalada globalmente, use os mesmos comandos com `npx supabase`.
+
+No painel do Supabase, mantenha:
+
+* **Authentication > URL Configuration > Site URL**: `http://localhost:3000`
+* **Authentication > URL Configuration > Redirect URLs**: `http://localhost:3000/auth/callback`
+
+Em produção, troque esses valores pelo domínio da Vercel.
+
+Rotas já implementadas:
+
+* `/dashboard`: painel inicial do casal;
+* `/settings/profile`: edição de nome, e-mail e URL da foto de perfil;
+* `/dashboard/site/[siteId]/editor`: editor inicial do site do casamento;
+* `/wedding/[slug]`: prévia pública/dinâmica do site do casamento.
+
+## Deploy
+
+O deploy é planejado para Vercel. Segredos de produção devem ser configurados nas variáveis de ambiente da Vercel e nas configurações do Supabase, nunca no repositório.
+
+## Roadmap
+
+* Múltiplos templates completos;
+* Domínios personalizados;
+* Planos pagos;
+* Editor avançado;
+* Múltiplos administradores por casamento;
+* Login social;
+* WhatsApp;
+* Álbum colaborativo;
+* Relatórios avançados;
+* Múltiplos idiomas;
+* Múltiplas moedas.
+
+## Aviso
+
+EverAfter é um projeto de portfólio em desenvolvimento. Recursos de pagamento devem usar APIs oficiais dos provedores e respeitar requisitos financeiros, jurídicos, regulatórios, de privacidade e de segurança.
