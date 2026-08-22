@@ -15,7 +15,9 @@ export type WeddingSiteEditorData = {
   heroImageUrl: string;
   story: string;
   ceremonyLocation: string;
+  ceremonyTime: string;
   receptionLocation: string;
+  receptionTime: string;
   ceremonyImageUrl: string;
   receptionImageUrl: string;
   rsvpNote: string;
@@ -25,6 +27,7 @@ export type WeddingSiteEditorData = {
 export type PublicWeddingSite = WeddingSiteEditorData & {
   coupleName: string;
   gifts: PublicGift[];
+  guests: PublicWeddingGuest[];
 };
 
 export type GiftEditorData = {
@@ -41,6 +44,18 @@ export type GiftEditorData = {
 };
 
 export type PublicGift = GiftEditorData;
+
+export type PublicWeddingGuest = {
+  id: string;
+  guestName: string;
+  expectedGuestCount: number;
+};
+
+type PublicWeddingGuestRow = {
+  id: string;
+  guest_name: string;
+  expected_guest_count: number;
+};
 
 export type RsvpEditorData = {
   id: string;
@@ -77,7 +92,7 @@ export async function getEditableWeddingSite(siteId: string): Promise<WeddingSit
   const { data: site, error } = await supabase
     .from("wedding_sites")
     .select(
-      "id, couple_id, slug, status, title, description, wedding_date, hero_image_url, story, ceremony_location, reception_location, ceremony_image_url, reception_image_url, rsvp_note, gift_note"
+      "id, couple_id, slug, status, title, description, wedding_date, hero_image_url, story, ceremony_location, ceremony_time, reception_location, reception_time, ceremony_image_url, reception_image_url, rsvp_note, gift_note"
     )
     .eq("id", siteId)
     .maybeSingle();
@@ -97,7 +112,9 @@ export async function getEditableWeddingSite(siteId: string): Promise<WeddingSit
     heroImageUrl: site.hero_image_url ?? defaultWeddingImages.hero[0].value,
     story: site.story ?? "",
     ceremonyLocation: site.ceremony_location ?? "",
+    ceremonyTime: site.ceremony_time ?? "",
     receptionLocation: site.reception_location ?? "",
+    receptionTime: site.reception_time ?? "",
     ceremonyImageUrl: site.ceremony_image_url ?? defaultWeddingImages.ceremony[0].value,
     receptionImageUrl: site.reception_image_url ?? defaultWeddingImages.reception[0].value,
     rsvpNote: site.rsvp_note ?? "",
@@ -111,6 +128,7 @@ export async function getEditableGifts(siteId: string): Promise<GiftEditorData[]
     .from("gifts")
     .select("id, status, category, title, description, image_url, amount_cents, quantity_total, quantity_purchased, allow_partial")
     .eq("site_id", siteId)
+    .neq("status", "archived")
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
 
@@ -173,7 +191,7 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
   const { data: site, error } = await supabase
     .from("wedding_sites")
     .select(
-      "id, couple_id, slug, status, title, description, wedding_date, hero_image_url, story, ceremony_location, reception_location, ceremony_image_url, reception_image_url, rsvp_note, gift_note"
+      "id, couple_id, slug, status, title, description, wedding_date, hero_image_url, story, ceremony_location, ceremony_time, reception_location, reception_time, ceremony_image_url, reception_image_url, rsvp_note, gift_note"
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -194,6 +212,9 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
     .eq("status", "active")
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
+  const { data: guests } = await supabase.rpc("get_public_wedding_guest_options", {
+    p_site_id: site.id
+  });
 
   return {
     id: site.id,
@@ -206,12 +227,19 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
     heroImageUrl: site.hero_image_url ?? defaultWeddingImages.hero[0].value,
     story: site.story ?? "",
     ceremonyLocation: site.ceremony_location ?? "",
+    ceremonyTime: site.ceremony_time ?? "",
     receptionLocation: site.reception_location ?? "",
+    receptionTime: site.reception_time ?? "",
     ceremonyImageUrl: site.ceremony_image_url ?? defaultWeddingImages.ceremony[0].value,
     receptionImageUrl: site.reception_image_url ?? defaultWeddingImages.reception[0].value,
     rsvpNote: site.rsvp_note ?? "",
     giftNote: site.gift_note ?? "",
     coupleName: couple?.display_name ?? site.title ?? "Nosso casamento",
+    guests: ((guests ?? []) as PublicWeddingGuestRow[]).map((guest) => ({
+      id: guest.id,
+      guestName: guest.guest_name,
+      expectedGuestCount: guest.expected_guest_count
+    })),
     gifts: dedupeGiftsByTitle((gifts ?? []).map((gift) => ({
       id: gift.id,
       status: gift.status,

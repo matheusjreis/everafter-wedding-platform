@@ -26,6 +26,14 @@ function formatWeddingDate(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatEventTime(value: string) {
+  if (!value) {
+    return "";
+  }
+
+  return value.slice(0, 5);
+}
+
 export default async function WeddingSitePage({ params }: WeddingSitePageProps) {
   const { slug } = await params;
   const site = await getPublicWeddingSite(slug);
@@ -74,6 +82,9 @@ export default async function WeddingSitePage({ params }: WeddingSitePageProps) 
             <p className="mt-3 text-base leading-7 text-muted-foreground">
               {site.ceremonyLocation || "Local da cerimônia em breve."}
             </p>
+            {site.ceremonyTime ? (
+              <p className="mt-3 text-sm font-semibold text-foreground">Horário: {formatEventTime(site.ceremonyTime)}</p>
+            ) : null}
           </div>
           <div className="rounded-lg border bg-card p-6 shadow-sm">
             {site.receptionImageUrl ? (
@@ -84,6 +95,9 @@ export default async function WeddingSitePage({ params }: WeddingSitePageProps) 
             <p className="mt-3 text-base leading-7 text-muted-foreground">
               {site.receptionLocation || "Local da recepção em breve."}
             </p>
+            {site.receptionTime ? (
+              <p className="mt-3 text-sm font-semibold text-foreground">Horário: {formatEventTime(site.receptionTime)}</p>
+            ) : null}
           </div>
         </aside>
       </section>
@@ -94,6 +108,7 @@ export default async function WeddingSitePage({ params }: WeddingSitePageProps) 
         rsvpNote={site.rsvpNote}
         giftNote={site.giftNote}
         gifts={site.gifts}
+        guests={site.guests}
       />
 
       <footer className="container flex flex-col gap-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">

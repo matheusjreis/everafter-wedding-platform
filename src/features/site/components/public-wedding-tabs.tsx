@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
-import type { PublicGift } from "../data";
+import type { PublicGift, PublicWeddingGuest } from "../data";
 import { RsvpForm } from "./rsvp-form";
 
 type PublicWeddingTabsProps = {
@@ -14,6 +14,7 @@ type PublicWeddingTabsProps = {
   rsvpNote: string;
   giftNote: string;
   gifts: PublicGift[];
+  guests: PublicWeddingGuest[];
 };
 
 function formatMoney(cents: number) {
@@ -23,7 +24,7 @@ function formatMoney(cents: number) {
   }).format(cents / 100);
 }
 
-export function PublicWeddingTabs({ siteId, siteSlug, rsvpNote, giftNote, gifts }: PublicWeddingTabsProps) {
+export function PublicWeddingTabs({ siteId, siteSlug, rsvpNote, giftNote, gifts, guests }: PublicWeddingTabsProps) {
   const [activeTab, setActiveTab] = useState<"rsvp" | "gifts">("rsvp");
 
   return (
@@ -61,7 +62,7 @@ export function PublicWeddingTabs({ siteId, siteSlug, rsvpNote, giftNote, gifts 
                 {rsvpNote || "Informe seu nome e confirme se poderá celebrar esse dia com o casal."}
               </p>
             </article>
-            <RsvpForm siteId={siteId} siteSlug={siteSlug} />
+            <RsvpForm siteId={siteId} siteSlug={siteSlug} guests={guests} />
           </div>
         ) : (
           <div className="mt-8">

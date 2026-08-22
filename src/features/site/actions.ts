@@ -10,6 +10,12 @@ import { getDefaultGiftImage, giftPresets } from "./default-assets";
 import { giftSchema, rsvpSchema, siteEditorSchema, weddingGuestSchema } from "./schemas";
 import type { SiteEditorActionState } from "./state";
 
+type PublicWeddingGuestOptionRow = {
+  id: string;
+  guest_name: string;
+  expected_guest_count: number;
+};
+
 function getStringField(formData: FormData, key: string) {
   const value = formData.get(key);
 
@@ -83,7 +89,9 @@ export async function updateWeddingSiteAction(
     "heroImageUrl",
     "story",
     "ceremonyLocation",
+    "ceremonyTime",
     "receptionLocation",
+    "receptionTime",
     "ceremonyImageUrl",
     "receptionImageUrl",
     "rsvpNote",
@@ -98,7 +106,9 @@ export async function updateWeddingSiteAction(
     heroImageUrl: getStringField(formData, "heroImageUrl"),
     story: getStringField(formData, "story"),
     ceremonyLocation: getStringField(formData, "ceremonyLocation"),
+    ceremonyTime: getStringField(formData, "ceremonyTime"),
     receptionLocation: getStringField(formData, "receptionLocation"),
+    receptionTime: getStringField(formData, "receptionTime"),
     ceremonyImageUrl: getStringField(formData, "ceremonyImageUrl"),
     receptionImageUrl: getStringField(formData, "receptionImageUrl"),
     rsvpNote: getStringField(formData, "rsvpNote"),
@@ -136,7 +146,9 @@ export async function updateWeddingSiteAction(
       hero_image_url: emptyToNull(parsed.data.heroImageUrl),
       story: emptyToNull(parsed.data.story),
       ceremony_location: emptyToNull(parsed.data.ceremonyLocation),
+      ceremony_time: emptyToNull(parsed.data.ceremonyTime),
       reception_location: emptyToNull(parsed.data.receptionLocation),
+      reception_time: emptyToNull(parsed.data.receptionTime),
       ceremony_image_url: emptyToNull(parsed.data.ceremonyImageUrl),
       reception_image_url: emptyToNull(parsed.data.receptionImageUrl),
       rsvp_note: emptyToNull(parsed.data.rsvpNote),
@@ -258,6 +270,223 @@ export async function createGiftAction(
   };
 }
 
+export async function createGiftBatchAction(
+  siteId: string,
+  coupleId: string,
+  siteSlug: string,
+  _state: SiteEditorActionState,
+  formData: FormData
+): Promise<SiteEditorActionState> {
+  const rawGifts = getStringField(formData, "giftsJson");
+  let giftItems: unknown;
+
+  try {
+    giftItems = JSON.parse(rawGifts);
+  } catch {
+    return {
+      status: "error",
+      message: "Não foi possível ler a lista de presentes. Tente montar a lista novamente.",
+      fields: {}
+    };
+  }
+
+  if (!Array.isArray(giftItems) || giftItems.length === 0) {
+    return {
+      status: "error",
+      message: "Adicione pelo menos um presente antes de salvar.",
+      fields: {}
+    };
+  }
+
+  const parsedGifts = [];
+  const pendingTitles = new Set<string>();
+
+  for (const giftItem of giftItems) {
+    const parsed = giftSchema.safeParse(giftItem);
+
+    if (!parsed.success) {
+      return {
+        status: "error",
+        message: "Revise os presentes pendentes. Algum item está incompleto ou inválido.",
+        fields: {}
+      };
+    }
+
+    const normalizedTitle = parsed.data.title.trim().toLowerCase();
+
+    if (pendingTitles.has(normalizedTitle)) {
+      return {
+        status: "error",
+        message: `O presente "${parsed.data.title}" está repetido na lista pendente.`,
+        fields: {}
+      };
+    }
+
+    pendingTitles.add(normalizedTitle);
+    parsedGifts.push(parsed.data);
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect("/sign-in" as Route);
+  }
+
+  const { data: existingGifts } = await supabase
+    .from("gifts")
+    .select("title")
+    .eq("site_id", siteId)
+    .neq("status", "archived");
+
+  const existingTitles = new Set((existingGifts ?? []).map((gift) => String(gift.title).trim().toLowerCase()));
+  const duplicatedGift = parsedGifts.find((gift) => existingTitles.has(gift.title.trim().toLowerCase()));
+
+  if (duplicatedGift) {
+    return {
+      status: "error",
+      message: `O presente "${duplicatedGift.title}" já existe na lista.`,
+      fields: {}
+    };
+  }
+
+  const { error } = await supabase.from("gifts").insert(
+    parsedGifts.map((giftItem) => ({
+      couple_id: coupleId,
+      site_id: siteId,
+      title: giftItem.title,
+      description: emptyToNull(giftItem.description),
+      image_url: emptyToNull(giftItem.imageUrl) ?? getDefaultGiftImage(giftItem.category, giftItem.title),
+      amount_cents: toAmountCents(giftItem.amount),
+      quantity_total: toOptionalInteger(giftItem.quantityTotal),
+      category: giftItem.category,
+      status: giftItem.status,
+      allow_partial: giftItem.allowPartial === "on"
+    }))
+  );
+
+  if (error) {
+    return {
+      status: "error",
+      message: mapSiteEditorError(error.message),
+      fields: {}
+    };
+  }
+
+  revalidatePath(`/dashboard/site/${siteId}/editor`);
+  revalidatePath("/dashboard");
+  revalidatePath(`/wedding/${siteSlug}`);
+
+  return {
+    status: "success",
+    message: parsedGifts.length === 1 ? "Presente salvo com sucesso." : "Presentes salvos com sucesso.",
+    fields: {}
+  };
+}
+
+export async function archiveGiftAction(
+  siteId: string,
+  giftId: string,
+  siteSlug: string,
+  _formData: FormData
+) {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect("/sign-in" as Route);
+  }
+
+  const { error } = await supabase
+    .from("gifts")
+    .update({ status: "archived" })
+    .eq("id", giftId)
+    .eq("site_id", siteId);
+
+  if (error) {
+    return;
+  }
+
+  revalidatePath(`/dashboard/site/${siteId}/editor`);
+  revalidatePath("/dashboard");
+  revalidatePath(`/wedding/${siteSlug}`);
+}
+
+export async function updateGiftAction(
+  siteId: string,
+  giftId: string,
+  siteSlug: string,
+  _formData: FormData
+) {
+  const parsed = giftSchema.safeParse({
+    title: getStringField(_formData, "title"),
+    description: getStringField(_formData, "description"),
+    imageUrl: getStringField(_formData, "imageUrl"),
+    amount: getStringField(_formData, "amount"),
+    quantityTotal: getStringField(_formData, "quantityTotal"),
+    category: getStringField(_formData, "category") || "custom",
+    status: getStringField(_formData, "status") || "draft",
+    allowPartial: getStringField(_formData, "allowPartial") || "off"
+  });
+
+  if (!parsed.success) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    redirect("/sign-in" as Route);
+  }
+
+  const { data: existingGift } = await supabase
+    .from("gifts")
+    .select("id")
+    .eq("site_id", siteId)
+    .ilike("title", parsed.data.title)
+    .neq("id", giftId)
+    .neq("status", "archived")
+    .limit(1)
+    .maybeSingle();
+
+  if (existingGift) {
+    return;
+  }
+
+  const { error } = await supabase
+    .from("gifts")
+    .update({
+      title: parsed.data.title,
+      description: emptyToNull(parsed.data.description),
+      image_url: emptyToNull(parsed.data.imageUrl) ?? getDefaultGiftImage(parsed.data.category, parsed.data.title),
+      amount_cents: toAmountCents(parsed.data.amount),
+      quantity_total: toOptionalInteger(parsed.data.quantityTotal),
+      category: parsed.data.category,
+      status: parsed.data.status,
+      allow_partial: parsed.data.allowPartial === "on"
+    })
+    .eq("id", giftId)
+    .eq("site_id", siteId);
+
+  if (error) {
+    return;
+  }
+
+  revalidatePath(`/dashboard/site/${siteId}/editor`);
+  revalidatePath("/dashboard");
+  revalidatePath(`/wedding/${siteSlug}`);
+}
+
 export async function createRsvpAction(
   siteId: string,
   siteSlug: string,
@@ -291,13 +520,28 @@ export async function createRsvpAction(
   }
 
   const supabase = await createSupabaseServerClient();
+  const { data: registeredGuests } = await supabase.rpc("get_public_wedding_guest_options", {
+    p_site_id: siteId
+  });
+  const registeredGuest = ((registeredGuests ?? []) as PublicWeddingGuestOptionRow[]).find(
+    (guest) => String(guest.guest_name).trim().toLowerCase() === parsed.data.guestName.trim().toLowerCase()
+  );
+
+  if (!registeredGuest) {
+    return {
+      status: "error",
+      message: "Seu nome não foi encontrado na lista de convidados. Confira a grafia ou fale com o casal.",
+      fields
+    };
+  }
+
   const { error } = await supabase.from("guest_rsvps").insert({
     site_id: siteId,
-    guest_name: parsed.data.guestName,
+    guest_name: registeredGuest.guest_name,
     email: emptyToNull(parsed.data.email),
     phone: emptyToNull(parsed.data.phone),
     attendance_status: parsed.data.attendanceStatus,
-    guest_count: Number.parseInt(parsed.data.guestCount, 10),
+    guest_count: registeredGuest.expected_guest_count,
     message: emptyToNull(parsed.data.message)
   });
 

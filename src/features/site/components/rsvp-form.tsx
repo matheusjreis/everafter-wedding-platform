@@ -6,11 +6,13 @@ import { useActionState } from "react";
 import { SubmitButton } from "@/components/forms/submit-button";
 
 import { createRsvpAction } from "../actions";
+import type { PublicWeddingGuest } from "../data";
 import { initialSiteEditorActionState } from "../state";
 
 type RsvpFormProps = {
   siteId: string;
   siteSlug: string;
+  guests: PublicWeddingGuest[];
 };
 
 function FieldError({ messages }: { messages?: string[] }) {
@@ -21,9 +23,11 @@ function FieldError({ messages }: { messages?: string[] }) {
   return <p className="text-sm font-medium text-destructive">{messages[0]}</p>;
 }
 
-export function RsvpForm({ siteId, siteSlug }: RsvpFormProps) {
+export function RsvpForm({ siteId, siteSlug, guests }: RsvpFormProps) {
   const rsvpAction = createRsvpAction.bind(null, siteId, siteSlug);
   const [state, action] = useActionState(rsvpAction, initialSiteEditorActionState);
+  const guestListId = `guest-list-${siteId}`;
+  const hasGuests = guests.length > 0;
 
   return (
     <form action={action} className="grid gap-5 rounded-lg border bg-background p-5 shadow-sm">
@@ -44,10 +48,23 @@ export function RsvpForm({ siteId, siteSlug }: RsvpFormProps) {
         <span className="text-sm font-medium">Nome completo</span>
         <input
           name="guestName"
+          list={guestListId}
           defaultValue={state.fields?.guestName}
           className="h-11 rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+          placeholder={hasGuests ? "Digite seu nome e escolha na lista" : "Lista de convidados ainda não cadastrada"}
+          disabled={!hasGuests}
           required
         />
+        <datalist id={guestListId}>
+          {guests.map((guest) => (
+            <option key={guest.id} value={guest.guestName}>
+              {guest.expectedGuestCount > 1 ? `${guest.expectedGuestCount} pessoas` : "1 pessoa"}
+            </option>
+          ))}
+        </datalist>
+        <p className="text-xs leading-5 text-muted-foreground">
+          Apenas nomes cadastrados pelo casal podem confirmar presença.
+        </p>
         <FieldError messages={state.fieldErrors?.guestName} />
       </label>
 
@@ -78,7 +95,7 @@ export function RsvpForm({ siteId, siteSlug }: RsvpFormProps) {
         <FieldError messages={state.fieldErrors?.attendanceStatus} />
       </fieldset>
 
-      <SubmitButton pendingLabel="Enviando confirmação...">
+      <SubmitButton pendingLabel="Enviando confirmação..." disabled={!hasGuests}>
         <span className="inline-flex items-center gap-2">
           <Send className="size-4" />
           Confirmar presença

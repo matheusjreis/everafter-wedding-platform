@@ -3,6 +3,11 @@ import { z } from "zod";
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const optionalText = (max: number, message: string) => z.string().trim().max(max, message).optional();
+const optionalTimeSchema = z
+  .string()
+  .trim()
+  .optional()
+  .refine((value) => !value || /^([01]\d|2[0-3]):[0-5]\d$/.test(value), "Informe um horário válido.");
 
 const optionalImageUrlSchema = z
   .string()
@@ -44,7 +49,9 @@ export const siteEditorSchema = z.object({
   heroImageUrl: optionalImageUrlSchema,
   story: optionalText(2800, "Use no máximo 2800 caracteres."),
   ceremonyLocation: optionalText(220, "Use no máximo 220 caracteres."),
+  ceremonyTime: optionalTimeSchema,
   receptionLocation: optionalText(220, "Use no máximo 220 caracteres."),
+  receptionTime: optionalTimeSchema,
   ceremonyImageUrl: optionalImageUrlSchema,
   receptionImageUrl: optionalImageUrlSchema,
   rsvpNote: optionalText(600, "Use no máximo 600 caracteres."),
