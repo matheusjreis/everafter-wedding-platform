@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -20,47 +20,51 @@ type VisualSelectProps = {
 
 export function VisualSelect({ label, name, defaultValue, options }: VisualSelectProps) {
   const [value, setValue] = useState(defaultValue);
+  const detailsRef = useRef<HTMLDetailsElement>(null);
   const selectedOption = options.find((option) => option.value === value) ?? options[0];
 
   return (
-    <label className="grid gap-2">
-      <span className="text-sm font-medium">{label}</span>
+    <div className="grid min-w-0 gap-2">
+      <label className="text-sm font-medium" htmlFor={`${name}-visual-select`}>
+        {label}
+      </label>
       <input type="hidden" name={name} value={value} />
       <div className="relative">
-        <details className="group">
-          <summary className="flex h-12 cursor-pointer list-none items-center justify-between rounded-lg border bg-background px-4 text-sm shadow-sm transition hover:border-primary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
-            <span>
-              <span className="block font-semibold">{selectedOption.label}</span>
-              {selectedOption.description ? (
-                <span className="block text-xs text-muted-foreground">{selectedOption.description}</span>
-              ) : null}
+        <details ref={detailsRef} className="group">
+          <summary
+            id={`${name}-visual-select`}
+            className="flex h-11 cursor-pointer list-none items-center justify-between gap-3 rounded-md border bg-background px-3 text-sm shadow-sm transition hover:border-primary/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 [&::-webkit-details-marker]:hidden"
+          >
+            <span className="min-w-0 truncate font-medium">{selectedOption.label}</span>
+            <span className="flex shrink-0 items-center gap-2">
+              <span className="size-2 rounded-full bg-primary/70" />
+              <ChevronDown className="size-4 text-muted-foreground transition group-open:rotate-180" />
             </span>
-            <ChevronDown className="size-4 text-muted-foreground transition group-open:rotate-180" />
           </summary>
-          <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-lg border bg-card p-1 shadow-lg">
+          <div className="absolute z-20 mt-2 w-full min-w-64 overflow-hidden rounded-lg border bg-card p-1 shadow-lg">
             {options.map((option) => (
               <button
                 key={option.value}
                 type="button"
-                onClick={(event) => {
+                onClick={() => {
                   setValue(option.value);
-                  event.currentTarget.closest("details")?.removeAttribute("open");
+                  detailsRef.current?.removeAttribute("open");
                 }}
                 className={cn(
-                  "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm transition hover:bg-muted",
+                  "flex w-full items-start justify-between gap-3 rounded-md px-3 py-3 text-left text-sm transition hover:bg-muted",
                   option.value === value ? "bg-muted text-foreground" : "text-muted-foreground"
                 )}
               >
-                <span>
+                <span className="min-w-0">
                   <span className="block font-medium">{option.label}</span>
-                  {option.description ? <span className="block text-xs">{option.description}</span> : null}
+                  {option.description ? <span className="mt-0.5 block text-xs leading-5">{option.description}</span> : null}
                 </span>
-                {option.value === value ? <Check className="size-4 text-primary" /> : null}
+                {option.value === value ? <Check className="mt-0.5 size-4 shrink-0 text-primary" /> : null}
               </button>
             ))}
           </div>
         </details>
       </div>
-    </label>
+    </div>
   );
 }

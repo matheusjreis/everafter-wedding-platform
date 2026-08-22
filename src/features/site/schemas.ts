@@ -78,3 +78,55 @@ export const giftSchema = z.object({
 });
 
 export type GiftInput = z.infer<typeof giftSchema>;
+
+export const rsvpSchema = z.object({
+  guestName: z
+    .string()
+    .trim()
+    .min(3, "Informe seu nome com pelo menos 3 caracteres.")
+    .max(160, "Use no máximo 160 caracteres."),
+  email: z
+    .string()
+    .trim()
+    .email("Informe um e-mail válido.")
+    .max(220, "Use no máximo 220 caracteres.")
+    .optional()
+    .or(z.literal("")),
+  phone: optionalText(40, "Use no máximo 40 caracteres."),
+  attendanceStatus: z.enum(["attending", "declined"]),
+  guestCount: z
+    .string()
+    .trim()
+    .min(1, "Informe a quantidade de pessoas.")
+    .refine((value) => Number.parseInt(value, 10) > 0, "Informe pelo menos 1 pessoa.")
+    .refine((value) => Number.parseInt(value, 10) <= 20, "Informe no máximo 20 pessoas."),
+  message: optionalText(600, "Use no máximo 600 caracteres.")
+});
+
+export type RsvpInput = z.infer<typeof rsvpSchema>;
+
+export const weddingGuestSchema = z.object({
+  guestName: z
+    .string()
+    .trim()
+    .min(3, "Informe o nome do convidado com pelo menos 3 caracteres.")
+    .max(160, "Use no máximo 160 caracteres."),
+  email: z
+    .string()
+    .trim()
+    .email("Informe um e-mail válido.")
+    .max(220, "Use no máximo 220 caracteres.")
+    .optional()
+    .or(z.literal("")),
+  phone: optionalText(40, "Use no máximo 40 caracteres."),
+  groupName: optionalText(80, "Use no máximo 80 caracteres."),
+  expectedGuestCount: z
+    .string()
+    .trim()
+    .optional()
+    .refine((value) => !value || Number.parseInt(value, 10) > 0, "Informe pelo menos 1 pessoa.")
+    .refine((value) => !value || Number.parseInt(value, 10) <= 20, "Informe no máximo 20 pessoas."),
+  notes: optionalText(500, "Use no máximo 500 caracteres.")
+});
+
+export type WeddingGuestInput = z.infer<typeof weddingGuestSchema>;

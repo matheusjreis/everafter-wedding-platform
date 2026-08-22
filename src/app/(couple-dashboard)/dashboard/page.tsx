@@ -73,7 +73,7 @@ export default async function DashboardPage() {
             </form>
           </div>
         </div>
-        <div className="grid gap-4 py-8 lg:grid-cols-[1.4fr_0.8fr]">
+        <div className="grid gap-4 py-8">
           <article className="rounded-lg border bg-card p-6 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Site em rascunho</p>
             <h2 className="mt-4 text-2xl font-semibold">{couple.site?.title ?? "Site do casamento"}</h2>
@@ -106,22 +106,6 @@ export default async function DashboardPage() {
               ) : null}
             </div>
           </article>
-
-          <aside className="rounded-lg border bg-card p-6 shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Próximas etapas</p>
-            <ol className="mt-5 grid gap-4 text-sm leading-6 text-muted-foreground">
-              <li>
-                <span className="font-semibold text-foreground">1. Conteúdo:</span> nomes, história, cerimônia e
-                recepção.
-              </li>
-              <li>
-                <span className="font-semibold text-foreground">2. Convidados:</span> RSVP e mensagens.
-              </li>
-              <li>
-                <span className="font-semibold text-foreground">3. Presentes:</span> lista simbólica e pagamentos.
-              </li>
-            </ol>
-          </aside>
         </div>
       </section>
     </main>

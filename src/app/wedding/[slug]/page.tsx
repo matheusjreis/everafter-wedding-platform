@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { getPublicWeddingSite } from "@/features/site/data";
+import { PublicWeddingTabs } from "@/features/site/components/public-wedding-tabs";
 import { WeddingCountdown } from "@/features/site/components/wedding-countdown";
 
 type WeddingSitePageProps = {
@@ -23,13 +24,6 @@ function formatWeddingDate(value: string | null) {
     year: "numeric",
     timeZone: "America/Sao_Paulo"
   }).format(new Date(value));
-}
-
-function formatMoney(cents: number) {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  }).format(cents / 100);
 }
 
 export default async function WeddingSitePage({ params }: WeddingSitePageProps) {
@@ -94,47 +88,13 @@ export default async function WeddingSitePage({ params }: WeddingSitePageProps) 
         </aside>
       </section>
 
-      <section className="border-t bg-card">
-        <div className="container grid gap-6 py-12 md:grid-cols-2">
-          <article>
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Confirmação de presença</p>
-            <p className="mt-3 text-base leading-7 text-muted-foreground">
-              {site.rsvpNote || "O RSVP será liberado nas próximas fases do EverAfter."}
-            </p>
-          </article>
-          <article>
-            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Presentes</p>
-            <p className="mt-3 text-base leading-7 text-muted-foreground">
-              {site.giftNote || "A lista de presentes simbólicos será conectada ao módulo de pagamentos."}
-            </p>
-          </article>
-        </div>
-      </section>
-
-      {site.gifts.length ? (
-        <section className="container py-12">
-          <p className="text-sm font-medium uppercase tracking-[0.16em] text-primary">Lista de presentes</p>
-          <h2 className="mt-3 font-serif text-4xl leading-tight">Presentes simbólicos</h2>
-          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {site.gifts.map((gift) => (
-              <article key={gift.id} className="overflow-hidden rounded-lg border bg-card shadow-sm">
-                {gift.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={gift.imageUrl} alt="" className="aspect-[4/3] w-full object-cover" />
-                ) : null}
-                <div className="p-5">
-                  <p className="text-lg font-semibold">{gift.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{gift.description || "Presente simbólico."}</p>
-                  <p className="mt-4 text-base font-semibold text-primary">{formatMoney(gift.amountCents)}</p>
-                  <Button type="button" className="mt-4 w-full">
-                    Presentear em breve
-                  </Button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <PublicWeddingTabs
+        siteId={site.id}
+        siteSlug={site.slug}
+        rsvpNote={site.rsvpNote}
+        giftNote={site.giftNote}
+        gifts={site.gifts}
+      />
 
       <footer className="container flex flex-col gap-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>Site criado no EverAfter.</span>

@@ -70,7 +70,7 @@ export function ImageUploadField({ label, name, initialUrl, uploadPathPrefix, he
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2">
       <span className="text-sm font-medium">{label}</span>
       <input name={name} type="hidden" value={url} />
       <input
@@ -83,8 +83,8 @@ export function ImageUploadField({ label, name, initialUrl, uploadPathPrefix, he
 
       <div
         className={cn(
-          "grid gap-4 rounded-lg border bg-background p-4 transition",
-          url ? "sm:grid-cols-[160px_1fr]" : "border-dashed"
+          "grid min-w-0 gap-4 rounded-lg border bg-background p-4 transition",
+          url ? "2xl:grid-cols-[160px_minmax(0,1fr)]" : "border-dashed"
         )}
       >
         <button
@@ -100,21 +100,27 @@ export function ImageUploadField({ label, name, initialUrl, uploadPathPrefix, he
           )}
         </button>
 
-        <div className="flex flex-col justify-center gap-3">
-          <div>
+        <div className="flex min-w-0 flex-col justify-center gap-3 2xl:pr-3">
+          <div className="min-w-0">
             <p className="text-sm font-semibold">{url ? "Imagem selecionada" : "Envie uma imagem do computador"}</p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
               {helper ?? "PNG, JPG, WebP ou GIF. Tamanho máximo de 10 MB."}
             </p>
           </div>
           {error ? <p className="text-sm font-medium text-destructive">{error}</p> : null}
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={() => inputRef.current?.click()} disabled={isUploading}>
+          <div className="flex min-w-0 flex-wrap items-start gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="max-w-full"
+              onClick={() => inputRef.current?.click()}
+              disabled={isUploading}
+            >
               {isUploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <UploadCloud className="mr-2 size-4" />}
               {isUploading ? "Enviando..." : "Escolher foto"}
             </Button>
             {url ? (
-              <Button type="button" variant="ghost" onClick={() => setUrl("")} disabled={isUploading}>
+              <Button type="button" variant="ghost" className="max-w-full" onClick={() => setUrl("")} disabled={isUploading}>
                 <X className="mr-2 size-4" />
                 Remover
               </Button>

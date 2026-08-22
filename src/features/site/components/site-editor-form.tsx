@@ -1,20 +1,22 @@
 "use client";
 
-import { CalendarDays, Gift, LinkIcon, MapPin, Send, Type } from "lucide-react";
+import { AlertCircle, CalendarDays, CheckCircle2, Gift, LinkIcon, MapPin, Send, Type, UsersRound } from "lucide-react";
 import { useActionState } from "react";
 
 import { ImageUploadField } from "@/components/forms/image-upload-field";
 import { SubmitButton } from "@/components/forms/submit-button";
 import { VisualSelect } from "@/components/forms/visual-select";
 
-import { createGiftAction, updateWeddingSiteAction } from "../actions";
+import { createGiftAction, createWeddingGuestAction, updateWeddingSiteAction } from "../actions";
 import { defaultWeddingImages, giftPresets } from "../default-assets";
 import { initialSiteEditorActionState } from "../state";
-import type { GiftEditorData, WeddingSiteEditorData } from "../data";
+import type { GiftEditorData, RsvpEditorData, WeddingGuestEditorData, WeddingSiteEditorData } from "../data";
 
 type SiteEditorFormProps = {
   site: WeddingSiteEditorData;
   gifts: GiftEditorData[];
+  rsvps: RsvpEditorData[];
+  guests: WeddingGuestEditorData[];
 };
 
 const siteStatusOptions = [
@@ -60,9 +62,25 @@ function formatMoney(cents: number) {
   }).format(cents / 100);
 }
 
-function GiftCreationForm({ site }: { site: WeddingSiteEditorData }) {
+function formatRsvpDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo"
+  }).format(new Date(value));
+}
+
+function normalizeGiftTitle(title: string) {
+  return title.trim().toLowerCase();
+}
+
+function GiftCreationForm({ site, gifts }: { site: WeddingSiteEditorData; gifts: GiftEditorData[] }) {
   const createAction = createGiftAction.bind(null, site.id, site.coupleId);
   const [state, action] = useActionState(createAction, initialSiteEditorActionState);
+  const existingGiftTitles = new Set(gifts.map((gift) => normalizeGiftTitle(gift.title)));
 
   return (
     <form action={action} className="grid gap-5 rounded-lg border bg-background p-5">
@@ -173,20 +191,29 @@ function GiftCreationForm({ site }: { site: WeddingSiteEditorData }) {
 
       <div className="grid gap-3 border-t pt-5">
         <p className="text-sm font-semibold">Presentes comuns</p>
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid max-h-96 gap-3 overflow-y-auto pr-2 lg:grid-cols-2">
           {giftPresets.map((preset) => (
-            <button
-              key={preset.id}
-              type="submit"
-              formNoValidate
-              name="presetId"
-              value={preset.id}
-              className="grid gap-2 rounded-lg border bg-card p-4 text-left text-sm shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:shadow-md"
-            >
-              <span className="font-semibold">{preset.title}</span>
-              <span className="leading-6 text-muted-foreground">{preset.description}</span>
-              <span className="font-semibold text-primary">R$ {preset.amount}</span>
-            </button>
+            (() => {
+              const alreadyExists = existingGiftTitles.has(normalizeGiftTitle(preset.title));
+
+              return (
+                <button
+                  key={preset.id}
+                  type="submit"
+                  formNoValidate
+                  name="presetId"
+                  value={preset.id}
+                  disabled={alreadyExists}
+                  className="grid gap-2 rounded-lg border bg-card p-4 text-left text-sm shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-primary enabled:hover:shadow-md disabled:cursor-not-allowed disabled:opacity-55"
+                >
+                  <span className="font-semibold">{preset.title}</span>
+                  <span className="leading-6 text-muted-foreground">{preset.description}</span>
+                  <span className="font-semibold text-primary">
+                    {alreadyExists ? "Já está na lista" : `R$ ${preset.amount}`}
+                  </span>
+                </button>
+              );
+            })()
           ))}
         </div>
       </div>
@@ -194,13 +221,12 @@ function GiftCreationForm({ site }: { site: WeddingSiteEditorData }) {
   );
 }
 
-export function SiteEditorForm({ site, gifts }: SiteEditorFormProps) {
-  const updateAction = updateWeddingSiteAction.bind(null, site.id);
-  const [state, action] = useActionState(updateAction, initialSiteEditorActionState);
+function WeddingGuestCreationForm({ site }: { site: WeddingSiteEditorData }) {
+  const createAction = createWeddingGuestAction.bind(null, site.id, site.coupleId);
+  const [state, action] = useActionState(createAction, initialSiteEditorActionState);
 
   return (
-    <div className="grid gap-6">
-      <form action={action} className="grid gap-6">
+    <form action={action} className="grid gap-5 rounded-lg border bg-background p-5">
       {state.message ? (
         <p
           className={
@@ -213,6 +239,118 @@ export function SiteEditorForm({ site, gifts }: SiteEditorFormProps) {
         </p>
       ) : null}
 
+      <div className="grid gap-5 lg:grid-cols-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-medium">Nome do convidado</span>
+          <input
+            name="guestName"
+            defaultValue={state.fields?.guestName}
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="Maria Oliveira"
+            required
+          />
+          <FieldError messages={state.fieldErrors?.guestName} />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-medium">Quantidade prevista</span>
+          <input
+            name="expectedGuestCount"
+            type="number"
+            min={1}
+            max={20}
+            defaultValue={state.fields?.expectedGuestCount ?? "1"}
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+          <FieldError messages={state.fieldErrors?.expectedGuestCount} />
+        </label>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-medium">E-mail</span>
+          <input
+            name="email"
+            type="email"
+            defaultValue={state.fields?.email}
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="convidado@email.com"
+          />
+          <FieldError messages={state.fieldErrors?.email} />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-medium">Telefone</span>
+          <input
+            name="phone"
+            defaultValue={state.fields?.phone}
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="(00) 00000-0000"
+          />
+          <FieldError messages={state.fieldErrors?.phone} />
+        </label>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-medium">Grupo</span>
+          <input
+            name="groupName"
+            defaultValue={state.fields?.groupName}
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="Família, amigos, trabalho..."
+          />
+          <FieldError messages={state.fieldErrors?.groupName} />
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-medium">Observações</span>
+          <input
+            name="notes"
+            defaultValue={state.fields?.notes}
+            className="h-11 w-full rounded-md border bg-background px-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="Restrição alimentar, acompanhante..."
+          />
+          <FieldError messages={state.fieldErrors?.notes} />
+        </label>
+      </div>
+
+      <SubmitButton pendingLabel="Cadastrando convidado...">
+        <span className="inline-flex items-center gap-2">
+          <UsersRound className="size-4" />
+          Cadastrar convidado
+        </span>
+      </SubmitButton>
+    </form>
+  );
+}
+
+export function SiteEditorForm({ site, gifts, rsvps, guests }: SiteEditorFormProps) {
+  const updateAction = updateWeddingSiteAction.bind(null, site.id);
+  const [state, action] = useActionState(updateAction, initialSiteEditorActionState);
+  const attendingCount = rsvps
+    .filter((rsvp) => rsvp.attendanceStatus === "attending")
+    .reduce((total, rsvp) => total + rsvp.guestCount, 0);
+  const declinedCount = rsvps.filter((rsvp) => rsvp.attendanceStatus === "declined").length;
+  const visibleGifts = Array.from(
+    new Map(gifts.map((gift) => [normalizeGiftTitle(gift.title), gift])).values()
+  );
+
+  return (
+    <div className="grid gap-6 pb-24 xl:pb-0">
+      {state.message ? (
+        <div
+          role="status"
+          className={
+            state.status === "error"
+              ? "fixed right-4 top-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-destructive/30 bg-destructive px-4 py-3 text-sm font-medium text-destructive-foreground shadow-lg"
+              : "fixed right-4 top-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-950 shadow-lg"
+          }
+        >
+          {state.status === "error" ? <AlertCircle className="mt-0.5 size-4 shrink-0" /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0" />}
+          <span>{state.message}</span>
+        </div>
+      ) : null}
+
+      <form action={action} className="grid gap-6">
+        <div className="grid gap-6">
       <div className="grid gap-5 lg:grid-cols-2">
         <label className="grid gap-2">
           <span className="text-sm font-medium">Título</span>
@@ -338,7 +476,7 @@ export function SiteEditorForm({ site, gifts }: SiteEditorFormProps) {
         <option value="Buffet" />
       </datalist>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid gap-5 2xl:grid-cols-2">
         <ImageUploadField
           label="Foto da cerimônia"
           name="ceremonyImageUrl"
@@ -379,12 +517,37 @@ export function SiteEditorForm({ site, gifts }: SiteEditorFormProps) {
         </label>
       </div>
 
-      <SubmitButton pendingLabel="Salvando site...">
-        <span className="inline-flex items-center gap-2">
-          <Send className="size-4" />
-          Salvar site
-        </span>
-      </SubmitButton>
+        </div>
+
+        <aside className="hidden w-56 rounded-lg border bg-background p-4 shadow-sm xl:fixed xl:right-10 xl:top-28 xl:z-30 2xl:right-[calc((100vw-1400px)/2+2rem)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Ações do site</p>
+          <p className="mt-3 text-sm font-semibold">
+            {state.status === "success" ? "Salvo agora" : state.status === "error" ? "Erro ao salvar" : "Pronto para salvar"}
+          </p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            Este botão salva apenas o conteúdo do site. Presentes e RSVP têm ações próprias.
+          </p>
+          <SubmitButton className="mt-4" pendingLabel="Salvando...">
+            <span className="inline-flex items-center gap-2">
+              <Send className="size-4" />
+              Salvar site
+            </span>
+          </SubmitButton>
+        </aside>
+
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(15,23,42,0.12)] backdrop-blur xl:hidden">
+          <div className="mx-auto grid max-w-2xl gap-2">
+            <p className="text-center text-xs font-medium text-muted-foreground">
+              {state.status === "success" ? "Site salvo com sucesso" : state.status === "error" ? "Erro ao salvar o site" : "Salve as alterações do site"}
+            </p>
+            <SubmitButton pendingLabel="Salvando...">
+              <span className="inline-flex items-center gap-2">
+                <Send className="size-4" />
+                Salvar site
+              </span>
+            </SubmitButton>
+          </div>
+        </div>
       </form>
 
       <section className="mt-4 grid gap-5 border-t pt-8">
@@ -395,10 +558,10 @@ export function SiteEditorForm({ site, gifts }: SiteEditorFormProps) {
             Cadastre presentes simbólicos com valor, categoria, quantidade, imagem e status de publicação.
           </p>
         </div>
-        <GiftCreationForm site={site} />
-        {gifts.length ? (
-          <div className="grid gap-3">
-            {gifts.map((giftItem) => (
+        <GiftCreationForm site={site} gifts={gifts} />
+        {visibleGifts.length ? (
+          <div className="grid max-h-[520px] gap-3 overflow-y-auto pr-2">
+            {visibleGifts.map((giftItem) => (
               <article key={giftItem.id} className="grid gap-4 rounded-lg border bg-background p-4 sm:grid-cols-[88px_1fr_auto]">
                 <div className="flex size-20 items-center justify-center overflow-hidden rounded-md border bg-muted">
                   {giftItem.imageUrl ? (
@@ -420,6 +583,107 @@ export function SiteEditorForm({ site, gifts }: SiteEditorFormProps) {
             ))}
           </div>
         ) : null}
+      </section>
+
+      <section className="mt-4 grid gap-5 border-t pt-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Lista de convidados</p>
+            <h2 className="mt-2 text-2xl font-semibold">Cadastro de convidados</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Cadastre convidados previstos para organizar grupos, contatos e quantidade esperada.
+            </p>
+          </div>
+          <div className="rounded-lg border bg-background px-4 py-3 text-sm">
+            <p className="text-2xl font-semibold">
+              {guests.reduce((total, guest) => total + guest.expectedGuestCount, 0)}
+            </p>
+            <p className="text-muted-foreground">Pessoas previstas</p>
+          </div>
+        </div>
+
+        <WeddingGuestCreationForm site={site} />
+        {guests.length ? (
+          <div className="grid max-h-[420px] gap-3 overflow-y-auto pr-2">
+            {guests.map((guest) => (
+              <article key={guest.id} className="rounded-lg border bg-background p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-semibold">{guest.guestName}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {guest.email || "Sem e-mail"} {guest.phone ? `- ${guest.phone}` : ""}
+                    </p>
+                    {guest.groupName || guest.notes ? (
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {[guest.groupName, guest.notes].filter(Boolean).join(" - ")}
+                      </p>
+                    ) : null}
+                  </div>
+                  <span className="rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em]">
+                    {guest.expectedGuestCount} pessoa(s)
+                  </span>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-background p-5 text-sm leading-6 text-muted-foreground">
+            Nenhum convidado cadastrado ainda.
+          </div>
+        )}
+      </section>
+
+      <section className="mt-4 grid gap-5 border-t pt-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Confirmações de presença</p>
+            <h2 className="mt-2 text-2xl font-semibold">RSVP dos convidados</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Acompanhe quem confirmou presença e as mensagens enviadas pelo site público.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-lg border bg-background px-4 py-3">
+              <p className="text-2xl font-semibold">{attendingCount}</p>
+              <p className="text-muted-foreground">Presenças</p>
+            </div>
+            <div className="rounded-lg border bg-background px-4 py-3">
+              <p className="text-2xl font-semibold">{declinedCount}</p>
+              <p className="text-muted-foreground">Ausências</p>
+            </div>
+          </div>
+        </div>
+
+        {rsvps.length ? (
+          <div className="grid gap-3">
+            {rsvps.map((rsvp) => (
+              <article key={rsvp.id} className="rounded-lg border bg-background p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-semibold">{rsvp.guestName}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {rsvp.email || "Sem e-mail"} {rsvp.phone ? `- ${rsvp.phone}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.12em]">
+                    <span className="rounded-full border px-3 py-1">
+                      {rsvp.attendanceStatus === "attending" ? "Vai comparecer" : "Não poderá ir"}
+                    </span>
+                    <span className="rounded-full border px-3 py-1">{rsvp.guestCount} pessoa(s)</span>
+                  </div>
+                </div>
+                {rsvp.message ? (
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{rsvp.message}</p>
+                ) : null}
+                <p className="mt-3 text-xs text-muted-foreground">{formatRsvpDate(rsvp.createdAt)}</p>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-background p-5 text-sm leading-6 text-muted-foreground">
+            Nenhuma confirmação recebida ainda.
+          </div>
+        )}
       </section>
     </div>
   );

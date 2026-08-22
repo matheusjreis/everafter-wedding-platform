@@ -20,6 +20,7 @@ export default async function ProfileSettingsPage() {
 
   const profile = await getCurrentProfile(user.id);
   const displayProfile = {
+    id: user.id,
     fullName:
       profile.fullName ||
       (typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "") ||

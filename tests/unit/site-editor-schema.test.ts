@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { giftSchema, siteEditorSchema } from "@/features/site/schemas";
+import { giftSchema, rsvpSchema, siteEditorSchema, weddingGuestSchema } from "@/features/site/schemas";
 
 describe("siteEditorSchema", () => {
   it("aceita conteúdo válido para o editor", () => {
@@ -53,6 +53,32 @@ describe("siteEditorSchema", () => {
       category: "travel",
       status: "active",
       allowPartial: "on"
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("aceita confirmação de presença válida", () => {
+    const result = rsvpSchema.safeParse({
+      guestName: "Maria Oliveira",
+      email: "maria@example.com",
+      phone: "(11) 99999-9999",
+      attendanceStatus: "attending",
+      guestCount: "2",
+      message: "Estamos felizes em celebrar com vocês."
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("aceita convidado cadastrado pelo casal", () => {
+    const result = weddingGuestSchema.safeParse({
+      guestName: "João Pereira",
+      email: "joao@example.com",
+      phone: "(11) 98888-7777",
+      groupName: "Família",
+      expectedGuestCount: "3",
+      notes: "Mesa próxima aos familiares."
     });
 
     expect(result.success).toBe(true);

@@ -2,7 +2,7 @@ import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-import { defaultWeddingImages } from "./default-assets";
+import { defaultWeddingImages, getDefaultGiftImage } from "./default-assets";
 
 export type WeddingSiteEditorData = {
   id: string;
@@ -41,6 +41,36 @@ export type GiftEditorData = {
 };
 
 export type PublicGift = GiftEditorData;
+
+export type RsvpEditorData = {
+  id: string;
+  guestName: string;
+  email: string;
+  phone: string;
+  attendanceStatus: "attending" | "declined";
+  guestCount: number;
+  message: string;
+  createdAt: string;
+};
+
+export type WeddingGuestEditorData = {
+  id: string;
+  guestName: string;
+  email: string;
+  phone: string;
+  groupName: string;
+  expectedGuestCount: number;
+  notes: string;
+  createdAt: string;
+};
+
+function normalizeGiftTitle(title: string) {
+  return title.trim().toLowerCase();
+}
+
+function dedupeGiftsByTitle(gifts: GiftEditorData[]) {
+  return Array.from(new Map(gifts.map((gift) => [normalizeGiftTitle(gift.title), gift])).values());
+}
 
 export async function getEditableWeddingSite(siteId: string): Promise<WeddingSiteEditorData | null> {
   const supabase = await createSupabaseServerClient();
@@ -84,17 +114,57 @@ export async function getEditableGifts(siteId: string): Promise<GiftEditorData[]
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map((gift) => ({
+  return dedupeGiftsByTitle((data ?? []).map((gift) => ({
     id: gift.id,
     status: gift.status,
     category: gift.category,
     title: gift.title,
     description: gift.description ?? "",
-    imageUrl: gift.image_url ?? defaultWeddingImages.gift[0].value,
+    imageUrl: gift.image_url ?? getDefaultGiftImage(gift.category, gift.title),
     amountCents: gift.amount_cents,
     quantityTotal: gift.quantity_total,
     quantityPurchased: gift.quantity_purchased,
     allowPartial: gift.allow_partial
+  })));
+}
+
+export async function getEditableRsvps(siteId: string): Promise<RsvpEditorData[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("guest_rsvps")
+    .select("id, guest_name, email, phone, attendance_status, guest_count, message, created_at")
+    .eq("site_id", siteId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map((rsvp) => ({
+    id: rsvp.id,
+    guestName: rsvp.guest_name,
+    email: rsvp.email ?? "",
+    phone: rsvp.phone ?? "",
+    attendanceStatus: rsvp.attendance_status,
+    guestCount: rsvp.guest_count,
+    message: rsvp.message ?? "",
+    createdAt: rsvp.created_at
+  }));
+}
+
+export async function getEditableWeddingGuests(siteId: string): Promise<WeddingGuestEditorData[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("wedding_guests")
+    .select("id, guest_name, email, phone, group_name, expected_guest_count, notes, created_at")
+    .eq("site_id", siteId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map((guest) => ({
+    id: guest.id,
+    guestName: guest.guest_name,
+    email: guest.email ?? "",
+    phone: guest.phone ?? "",
+    groupName: guest.group_name ?? "",
+    expectedGuestCount: guest.expected_guest_count,
+    notes: guest.notes ?? "",
+    createdAt: guest.created_at
   }));
 }
 
@@ -142,17 +212,17 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
     rsvpNote: site.rsvp_note ?? "",
     giftNote: site.gift_note ?? "",
     coupleName: couple?.display_name ?? site.title ?? "Nosso casamento",
-    gifts: (gifts ?? []).map((gift) => ({
+    gifts: dedupeGiftsByTitle((gifts ?? []).map((gift) => ({
       id: gift.id,
       status: gift.status,
       category: gift.category,
       title: gift.title,
       description: gift.description ?? "",
-      imageUrl: gift.image_url ?? defaultWeddingImages.gift[0].value,
+      imageUrl: gift.image_url ?? getDefaultGiftImage(gift.category, gift.title),
       amountCents: gift.amount_cents,
       quantityTotal: gift.quantity_total,
       quantityPurchased: gift.quantity_purchased,
       allowPartial: gift.allow_partial
-    }))
+    })))
   };
 }

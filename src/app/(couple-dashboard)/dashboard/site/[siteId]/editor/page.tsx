@@ -4,7 +4,7 @@ import { notFound, redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { SiteEditorForm } from "@/features/site/components/site-editor-form";
-import { getEditableGifts, getEditableWeddingSite } from "@/features/site/data";
+import { getEditableGifts, getEditableRsvps, getEditableWeddingGuests, getEditableWeddingSite } from "@/features/site/data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 type SiteEditorPageProps = {
@@ -32,6 +32,8 @@ export default async function SiteEditorPage({ params }: SiteEditorPageProps) {
   }
 
   const gifts = await getEditableGifts(site.id);
+  const rsvps = await getEditableRsvps(site.id);
+  const guests = await getEditableWeddingGuests(site.id);
 
   return (
     <main className="min-h-screen bg-background">
@@ -41,7 +43,7 @@ export default async function SiteEditorPage({ params }: SiteEditorPageProps) {
             <p className="text-sm font-medium uppercase tracking-[0.16em] text-primary">Editor do site</p>
             <h1 className="mt-3 font-serif text-4xl leading-tight">{site.title}</h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-              Edite a primeira versão pública do casamento. As próximas fases adicionam seções, convidados e presentes.
+              Edite a versão pública do casamento, acompanhe presentes e veja as confirmações dos convidados.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -49,14 +51,16 @@ export default async function SiteEditorPage({ params }: SiteEditorPageProps) {
               <Link href={"/dashboard" as Route}>Voltar ao painel</Link>
             </Button>
             <Button asChild>
-              <Link href={`/wedding/${site.slug}` as Route}>Ver prévia</Link>
+              <Link href={`/wedding/${site.slug}` as Route} target="_blank" rel="noreferrer">
+                Ver prévia
+              </Link>
             </Button>
           </div>
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
           <div className="rounded-lg border bg-card p-6 shadow-sm sm:p-8">
-            <SiteEditorForm site={site} gifts={gifts} />
+            <SiteEditorForm site={site} gifts={gifts} rsvps={rsvps} guests={guests} />
           </div>
           <aside className="rounded-lg border bg-card p-6 shadow-sm">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-primary">Prévia rápida</p>
@@ -66,7 +70,14 @@ export default async function SiteEditorPage({ params }: SiteEditorPageProps) {
             </p>
             <div className="mt-5 rounded-md border bg-background p-4 text-sm leading-6">
               <p className="font-semibold">Endereço</p>
-              <p className="mt-1 text-muted-foreground">/wedding/{site.slug}</p>
+              <Link
+                href={`/wedding/${site.slug}` as Route}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-flex text-muted-foreground transition hover:text-primary hover:underline"
+              >
+                /wedding/{site.slug}
+              </Link>
             </div>
             <div className="mt-4 rounded-md border bg-background p-4 text-sm leading-6">
               <p className="font-semibold">Publicação</p>
