@@ -69,16 +69,12 @@ export async function updateProfileAction(
 
   const normalizedAvatarUrl = parsed.data.avatarUrl || null;
   const normalizedPixKey = parsed.data.pixKey?.trim() || null;
-  const { error: profileError } = await supabase.from("profiles").upsert(
-    {
-      id: user.id,
-      email: parsed.data.email,
-      full_name: parsed.data.fullName,
-      avatar_url: normalizedAvatarUrl,
-      pix_key: normalizedPixKey
-    },
-    { onConflict: "id" }
-  );
+  const { error: profileError } = await supabase.rpc("update_own_profile", {
+    p_email: parsed.data.email,
+    p_full_name: parsed.data.fullName,
+    p_avatar_url: normalizedAvatarUrl,
+    p_pix_key: normalizedPixKey
+  });
 
   if (profileError) {
     return {
