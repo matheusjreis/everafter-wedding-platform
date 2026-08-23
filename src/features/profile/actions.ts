@@ -40,11 +40,12 @@ export async function updateProfileAction(
   _state: ProfileActionState,
   formData: FormData
 ): Promise<ProfileActionState> {
-  const fields = createFieldSnapshot(formData, ["fullName", "email", "avatarUrl"]);
+  const fields = createFieldSnapshot(formData, ["fullName", "email", "avatarUrl", "pixKey"]);
   const parsed = profileSchema.safeParse({
     fullName: getStringField(formData, "fullName"),
     email: getStringField(formData, "email"),
-    avatarUrl: getStringField(formData, "avatarUrl")
+    avatarUrl: getStringField(formData, "avatarUrl"),
+    pixKey: getStringField(formData, "pixKey")
   });
 
   if (!parsed.success) {
@@ -67,12 +68,14 @@ export async function updateProfileAction(
   }
 
   const normalizedAvatarUrl = parsed.data.avatarUrl || null;
+  const normalizedPixKey = parsed.data.pixKey?.trim() || null;
   const { error: profileError } = await supabase.from("profiles").upsert(
     {
       id: user.id,
       email: parsed.data.email,
       full_name: parsed.data.fullName,
-      avatar_url: normalizedAvatarUrl
+      avatar_url: normalizedAvatarUrl,
+      pix_key: normalizedPixKey
     },
     { onConflict: "id" }
   );

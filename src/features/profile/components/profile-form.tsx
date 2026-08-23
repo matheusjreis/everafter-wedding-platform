@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Mail, Pencil, UserRound } from "lucide-react";
+import { KeyRound, Loader2, Mail, Pencil, UserRound } from "lucide-react";
 import { useActionState, useRef, useState } from "react";
 
 import { SubmitButton } from "@/components/forms/submit-button";
@@ -15,6 +15,7 @@ type ProfileFormProps = {
     fullName: string;
     email: string;
     avatarUrl: string | null;
+    pixKey: string;
   };
 };
 
@@ -172,6 +173,23 @@ export function ProfileForm({ profile }: ProfileFormProps) {
         </span>
         <p className="text-xs text-muted-foreground">Alterar o e-mail pode exigir confirmação pelo Supabase.</p>
         <FieldError messages={state.fieldErrors?.email} />
+      </label>
+
+      <label className="grid gap-2">
+        <span className="text-sm font-medium">Chave Pix do casal</span>
+        <span className="relative">
+          <KeyRound className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            name="pixKey"
+            defaultValue={state.fields?.pixKey ?? profile.pixKey}
+            className="h-11 w-full rounded-md border bg-background px-10 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            placeholder="CPF, e-mail, telefone ou chave aleatória"
+          />
+        </span>
+        <p className="text-xs text-muted-foreground">
+          Essa chave será usada para gerar o QR Code Pix dos presentes do site público.
+        </p>
+        <FieldError messages={state.fieldErrors?.pixKey} />
       </label>
 
       <SubmitButton pendingLabel="Salvando perfil...">Salvar perfil</SubmitButton>

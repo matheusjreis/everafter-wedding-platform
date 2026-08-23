@@ -26,6 +26,7 @@ export type WeddingSiteEditorData = {
 
 export type PublicWeddingSite = WeddingSiteEditorData & {
   coupleName: string;
+  pixKey: string;
   gifts: PublicGift[];
   guests: PublicWeddingGuest[];
 };
@@ -38,6 +39,7 @@ export type GiftEditorData = {
   description: string;
   imageUrl: string;
   amountCents: number;
+  amountContributedCents: number;
   quantityTotal: number | null;
   quantityPurchased: number;
   allowPartial: boolean;
@@ -55,6 +57,11 @@ type PublicWeddingGuestRow = {
   id: string;
   guest_name: string;
   expected_guest_count: number;
+};
+
+type PublicWeddingPaymentProfileRow = {
+  pix_key: string | null;
+  merchant_name: string | null;
 };
 
 export type RsvpEditorData = {
@@ -126,7 +133,9 @@ export async function getEditableGifts(siteId: string): Promise<GiftEditorData[]
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("gifts")
-    .select("id, status, category, title, description, image_url, amount_cents, quantity_total, quantity_purchased, allow_partial")
+    .select(
+      "id, status, category, title, description, image_url, amount_cents, amount_contributed_cents, quantity_total, quantity_purchased, allow_partial"
+    )
     .eq("site_id", siteId)
     .neq("status", "archived")
     .order("sort_order", { ascending: true })
@@ -140,6 +149,7 @@ export async function getEditableGifts(siteId: string): Promise<GiftEditorData[]
     description: gift.description ?? "",
     imageUrl: gift.image_url ?? getDefaultGiftImage(gift.category, gift.title),
     amountCents: gift.amount_cents,
+    amountContributedCents: gift.amount_contributed_cents ?? 0,
     quantityTotal: gift.quantity_total,
     quantityPurchased: gift.quantity_purchased,
     allowPartial: gift.allow_partial
@@ -207,12 +217,17 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
     .maybeSingle();
   const { data: gifts } = await supabase
     .from("gifts")
-    .select("id, status, category, title, description, image_url, amount_cents, quantity_total, quantity_purchased, allow_partial")
+    .select(
+      "id, status, category, title, description, image_url, amount_cents, amount_contributed_cents, quantity_total, quantity_purchased, allow_partial"
+    )
     .eq("site_id", site.id)
-    .eq("status", "active")
+    .in("status", ["active", "sold_out"])
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: false });
   const { data: guests } = await supabase.rpc("get_public_wedding_guest_options", {
+    p_site_id: site.id
+  });
+  const { data: paymentProfile } = await supabase.rpc("get_public_wedding_payment_profile", {
     p_site_id: site.id
   });
 
@@ -235,6 +250,7 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
     rsvpNote: site.rsvp_note ?? "",
     giftNote: site.gift_note ?? "",
     coupleName: couple?.display_name ?? site.title ?? "Nosso casamento",
+    pixKey: ((paymentProfile?.[0] as PublicWeddingPaymentProfileRow | undefined)?.pix_key ?? "").trim(),
     guests: ((guests ?? []) as PublicWeddingGuestRow[]).map((guest) => ({
       id: guest.id,
       guestName: guest.guest_name,
@@ -248,6 +264,7 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
       description: gift.description ?? "",
       imageUrl: gift.image_url ?? getDefaultGiftImage(gift.category, gift.title),
       amountCents: gift.amount_cents,
+      amountContributedCents: gift.amount_contributed_cents ?? 0,
       quantityTotal: gift.quantity_total,
       quantityPurchased: gift.quantity_purchased,
       allowPartial: gift.allow_partial

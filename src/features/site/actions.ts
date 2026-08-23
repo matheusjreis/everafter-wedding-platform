@@ -5,15 +5,28 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { buildPixPayload } from "@/lib/pix";
 
 import { getDefaultGiftImage, giftPresets } from "./default-assets";
-import { dashboardSiteSettingsSchema, giftSchema, rsvpSchema, siteEditorSchema, weddingGuestSchema } from "./schemas";
+import {
+  dashboardSiteSettingsSchema,
+  giftContributionSchema,
+  giftSchema,
+  rsvpSchema,
+  siteEditorSchema,
+  weddingGuestSchema
+} from "./schemas";
 import type { SiteEditorActionState } from "./state";
 
 type PublicWeddingGuestOptionRow = {
   id: string;
   guest_name: string;
   expected_guest_count: number;
+};
+
+type PublicWeddingPaymentProfileRow = {
+  pix_key: string | null;
+  merchant_name: string | null;
 };
 
 function getStringField(formData: FormData, key: string) {
@@ -59,6 +72,28 @@ function mapSiteEditorError(message?: string) {
 
 function toAmountCents(value: string) {
   return Math.round(Number(value.replace(",", ".")) * 100);
+}
+
+function mapGiftContributionError(message?: string) {
+  const normalizedMessage = message?.toLowerCase() ?? "";
+
+  if (normalizedMessage.includes("indispon")) {
+    return "Este presente não está mais disponível.";
+  }
+
+  if (normalizedMessage.includes("saldo") || normalizedMessage.includes("maior")) {
+    return "O valor informado é maior que o saldo disponível para este presente.";
+  }
+
+  if (normalizedMessage.includes("parcial")) {
+    return "Este presente não aceita pagamento parcial.";
+  }
+
+  if (normalizedMessage.includes("pix")) {
+    return "O casal ainda não configurou a chave Pix para receber presentes.";
+  }
+
+  return "Não foi possível registrar o presente. Tente novamente.";
 }
 
 function toOptionalInteger(value?: string) {
@@ -625,6 +660,99 @@ export async function createRsvpAction(
     status: "success",
     message: "Confirmação enviada com sucesso. Obrigado!",
     fields: {}
+  };
+}
+
+export async function createGiftContributionAction(
+  giftId: string,
+  siteSlug: string,
+  _state: SiteEditorActionState,
+  formData: FormData
+): Promise<SiteEditorActionState> {
+  const fields = createFieldSnapshot(formData, ["contributorName", "contributorEmail", "amount", "message"]);
+  const parsed = giftContributionSchema.safeParse({
+    contributorName: getStringField(formData, "contributorName"),
+    contributorEmail: getStringField(formData, "contributorEmail"),
+    amount: getStringField(formData, "amount"),
+    message: getStringField(formData, "message")
+  });
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "Revise os dados para presentear.",
+      fields,
+      fieldErrors: parsed.error.flatten().fieldErrors
+    };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: gift } = await supabase
+    .from("gifts")
+    .select("id, site_id, title")
+    .eq("id", giftId)
+    .maybeSingle();
+
+  if (!gift) {
+    return {
+      status: "error",
+      message: "Este presente não está mais disponível.",
+      fields
+    };
+  }
+
+  const { data: paymentProfile } = await supabase.rpc("get_public_wedding_payment_profile", {
+    p_site_id: gift.site_id
+  });
+  const paymentProfileRow = (paymentProfile?.[0] as PublicWeddingPaymentProfileRow | undefined) ?? null;
+  const pixKey = paymentProfileRow?.pix_key?.trim() ?? "";
+
+  if (!pixKey) {
+    return {
+      status: "error",
+      message: "O casal ainda não configurou a chave Pix para receber presentes.",
+      fields
+    };
+  }
+
+  const amountCents = toAmountCents(parsed.data.amount);
+  const pixPayload = buildPixPayload({
+    pixKey,
+    merchantName: paymentProfileRow?.merchant_name || "EverAfter",
+    amountCents,
+    txid: crypto.randomUUID()
+  });
+  const { data: contributionId, error } = await supabase.rpc("present_wedding_gift", {
+    p_gift_id: giftId,
+    p_contributor_name: parsed.data.contributorName,
+    p_contributor_email: emptyToNull(parsed.data.contributorEmail),
+    p_amount_cents: amountCents,
+    p_message: emptyToNull(parsed.data.message),
+    p_pix_payload: pixPayload,
+    p_pix_key_snapshot: pixKey
+  });
+
+  if (error) {
+    return {
+      status: "error",
+      message: mapGiftContributionError(error.message),
+      fields
+    };
+  }
+
+  revalidatePath(`/wedding/${siteSlug}`);
+
+  return {
+    status: "success",
+    message: "Presente registrado com sucesso. Obrigado pelo carinho!",
+    fields: {
+      contributorName: parsed.data.contributorName,
+      contributorEmail: parsed.data.contributorEmail ?? "",
+      amount: parsed.data.amount,
+      message: parsed.data.message ?? "",
+      contributionId: String(contributionId ?? ""),
+      pixPayload
+    }
   };
 }
 

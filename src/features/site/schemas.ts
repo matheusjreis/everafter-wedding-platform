@@ -126,6 +126,29 @@ export const rsvpSchema = z.object({
 
 export type RsvpInput = z.infer<typeof rsvpSchema>;
 
+export const giftContributionSchema = z.object({
+  contributorName: z
+    .string()
+    .trim()
+    .min(3, "Informe seu nome com pelo menos 3 caracteres.")
+    .max(160, "Use no máximo 160 caracteres."),
+  contributorEmail: z
+    .string()
+    .trim()
+    .email("Informe um e-mail válido.")
+    .max(220, "Use no máximo 220 caracteres.")
+    .optional()
+    .or(z.literal("")),
+  amount: z
+    .string()
+    .trim()
+    .min(1, "Informe o valor.")
+    .refine((value) => Number(value.replace(",", ".")) > 0, "Informe um valor maior que zero."),
+  message: optionalText(500, "Use no máximo 500 caracteres.")
+});
+
+export type GiftContributionInput = z.infer<typeof giftContributionSchema>;
+
 export const weddingGuestSchema = z.object({
   guestName: z
     .string()

@@ -27,6 +27,7 @@ const demoGifts = giftPresets.slice(0, 6).map((gift, index) => ({
   description: gift.description,
   imageUrl: gift.imageUrl,
   amountCents: centsFromMoney(gift.amount),
+  amountContributedCents: index === 0 ? 12000 : 0,
   quantityTotal: index % 2 === 0 ? 5 : null,
   quantityPurchased: index === 0 ? 1 : 0,
   allowPartial: true

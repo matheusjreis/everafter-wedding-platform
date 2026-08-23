@@ -25,7 +25,8 @@ export const profileSchema = z.object({
     .min(3, "Informe um nome com pelo menos 3 caracteres.")
     .max(160, "Use no máximo 160 caracteres."),
   email: z.string().trim().email("Informe um e-mail válido."),
-  avatarUrl: optionalUrlSchema
+  avatarUrl: optionalUrlSchema,
+  pixKey: z.string().trim().max(77, "Use no máximo 77 caracteres.").optional()
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;

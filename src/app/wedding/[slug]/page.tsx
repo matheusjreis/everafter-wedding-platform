@@ -109,6 +109,7 @@ export default async function WeddingSitePage({ params }: WeddingSitePageProps) 
         giftNote={site.giftNote}
         gifts={site.gifts}
         guests={site.guests}
+        pixKey={site.pixKey}
       />
 
       <footer className="container flex flex-col gap-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">

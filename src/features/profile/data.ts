@@ -7,13 +7,14 @@ export type CurrentProfile = {
   email: string;
   fullName: string;
   avatarUrl: string | null;
+  pixKey: string;
 };
 
 export async function getCurrentProfile(userId: string): Promise<CurrentProfile> {
   const supabase = await createSupabaseServerClient();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, full_name, avatar_url")
+    .select("id, email, full_name, avatar_url, pix_key")
     .eq("id", userId)
     .maybeSingle();
 
@@ -21,6 +22,7 @@ export async function getCurrentProfile(userId: string): Promise<CurrentProfile>
     id: userId,
     email: profile?.email ?? "",
     fullName: profile?.full_name ?? "",
-    avatarUrl: profile?.avatar_url ?? null
+    avatarUrl: profile?.avatar_url ?? null,
+    pixKey: profile?.pix_key ?? ""
   };
 }

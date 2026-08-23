@@ -3,9 +3,8 @@
 import { Gift, MessageSquare } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
-
 import type { PublicGift, PublicWeddingGuest } from "../data";
+import { GiftContributionForm } from "./gift-contribution-form";
 import { RsvpForm } from "./rsvp-form";
 
 type PublicWeddingTabsProps = {
@@ -15,6 +14,7 @@ type PublicWeddingTabsProps = {
   giftNote: string;
   gifts: PublicGift[];
   guests: PublicWeddingGuest[];
+  pixKey: string;
 };
 
 function formatMoney(cents: number) {
@@ -24,8 +24,46 @@ function formatMoney(cents: number) {
   }).format(cents / 100);
 }
 
-export function PublicWeddingTabs({ siteId, siteSlug, rsvpNote, giftNote, gifts, guests }: PublicWeddingTabsProps) {
+function getGiftTargetCents(gift: PublicGift) {
+  return gift.amountCents * (gift.quantityTotal ?? 1);
+}
+
+function getRemainingCents(gift: PublicGift) {
+  return Math.max(getGiftTargetCents(gift) - gift.amountContributedCents, 0);
+}
+
+function getGiftAvailabilityLabel(gift: PublicGift) {
+  if (gift.status === "sold_out" || getRemainingCents(gift) <= 0) {
+    return "Indisponível";
+  }
+
+  if (gift.allowPartial) {
+    return "Aceita contribuição parcial";
+  }
+
+  return "Valor único";
+}
+
+export function PublicWeddingTabs({
+  siteId,
+  siteSlug,
+  rsvpNote,
+  giftNote,
+  gifts,
+  guests,
+  pixKey
+}: PublicWeddingTabsProps) {
   const [activeTab, setActiveTab] = useState<"rsvp" | "gifts">("rsvp");
+  const sortedGifts = [...gifts].sort((firstGift, secondGift) => {
+    const firstUnavailable = firstGift.status === "sold_out" || getRemainingCents(firstGift) <= 0;
+    const secondUnavailable = secondGift.status === "sold_out" || getRemainingCents(secondGift) <= 0;
+
+    if (firstUnavailable === secondUnavailable) {
+      return 0;
+    }
+
+    return firstUnavailable ? 1 : -1;
+  });
 
   return (
     <section className="border-t bg-card">
@@ -75,22 +113,36 @@ export function PublicWeddingTabs({ siteId, siteSlug, rsvpNote, giftNote, gifts,
             </div>
             {gifts.length ? (
               <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-                {gifts.map((gift) => (
-                  <article key={gift.id} className="overflow-hidden rounded-lg border bg-background shadow-sm">
-                    {gift.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={gift.imageUrl} alt="" className="aspect-[4/3] w-full object-cover" />
-                    ) : null}
-                    <div className="p-5">
-                      <p className="text-lg font-semibold">{gift.title}</p>
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">{gift.description || "Presente simbólico."}</p>
-                      <p className="mt-4 text-base font-semibold text-primary">{formatMoney(gift.amountCents)}</p>
-                      <Button type="button" className="mt-4 w-full">
-                        Presentear em breve
-                      </Button>
-                    </div>
-                  </article>
-                ))}
+                {sortedGifts.map((gift) => {
+                  const remainingCents = getRemainingCents(gift);
+                  const isUnavailable = gift.status === "sold_out" || remainingCents <= 0;
+
+                  return (
+                    <article
+                      key={gift.id}
+                      className={`overflow-hidden rounded-lg border bg-background shadow-sm transition ${
+                        isUnavailable ? "opacity-55 grayscale" : ""
+                      }`}
+                    >
+                      {gift.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={gift.imageUrl} alt="" className="aspect-[4/3] w-full object-cover" />
+                      ) : null}
+                      <div className="p-5">
+                        <div className="mb-3 inline-flex rounded-full border bg-card px-3 py-1 text-xs font-semibold text-muted-foreground">
+                          {getGiftAvailabilityLabel(gift)}
+                        </div>
+                        <p className="text-lg font-semibold">{gift.title}</p>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">{gift.description || "Presente simbólico."}</p>
+                        <p className="mt-4 text-base font-semibold text-primary">{formatMoney(gift.amountCents)}</p>
+                        {gift.allowPartial && !isUnavailable ? (
+                          <p className="mt-1 text-xs text-muted-foreground">Restante: {formatMoney(remainingCents)}</p>
+                        ) : null}
+                        <GiftContributionForm gift={gift} siteSlug={siteSlug} pixKey={pixKey} />
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div className="mt-8 rounded-lg border bg-background p-5 text-sm leading-6 text-muted-foreground">

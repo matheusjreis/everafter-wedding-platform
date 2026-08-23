@@ -26,7 +26,8 @@ export default async function ProfileSettingsPage() {
       (typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "") ||
       "",
     email: profile.email || user.email || "",
-    avatarUrl: profile.avatarUrl
+    avatarUrl: profile.avatarUrl,
+    pixKey: profile.pixKey
   };
 
   return (
