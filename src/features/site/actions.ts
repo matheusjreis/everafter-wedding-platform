@@ -90,7 +90,7 @@ function mapGiftContributionError(message?: string) {
   }
 
   if (normalizedMessage.includes("pix")) {
-    return "Nenhum perfil de administrador do casal tem chave Pix cadastrada para receber presentes.";
+    return "Nenhum perfil ativo do casal tem chave Pix cadastrada para receber presentes.";
   }
 
   return "Não foi possível registrar o presente. Tente novamente.";
@@ -710,7 +710,7 @@ export async function createGiftContributionAction(
   if (!pixKey) {
     return {
       status: "error",
-      message: "Nenhum perfil de administrador do casal tem chave Pix cadastrada para receber presentes.",
+      message: "Nenhum perfil ativo do casal tem chave Pix cadastrada para receber presentes.",
       fields
     };
   }
