@@ -4,6 +4,7 @@ import type { Route } from "next";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { buildPixPayload } from "@/lib/pix";
 
@@ -28,6 +29,83 @@ type PublicWeddingPaymentProfileRow = {
   pix_key: string | null;
   merchant_name: string | null;
 };
+
+type GiftPaymentLookupRow = {
+  id: string;
+  pix_key: string | null;
+  full_name: string | null;
+};
+
+type GiftPaymentMemberRow = {
+  user_id: string;
+  role: "owner" | "admin" | "collaborator";
+  created_at: string;
+};
+
+function getPaymentProfileRow(data: unknown): PublicWeddingPaymentProfileRow | null {
+  if (Array.isArray(data)) {
+    return (data[0] as PublicWeddingPaymentProfileRow | undefined) ?? null;
+  }
+
+  if (data && typeof data === "object" && "pix_key" in data) {
+    return data as PublicWeddingPaymentProfileRow;
+  }
+
+  return null;
+}
+
+function getFirstPaymentMemberRow(data: unknown): GiftPaymentMemberRow | null {
+  if (!Array.isArray(data)) {
+    return null;
+  }
+
+  return (data[0] as GiftPaymentMemberRow | undefined) ?? null;
+}
+
+function maskPixKey(value?: string | null) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  if (trimmed.includes("@")) {
+    const [name, domain] = trimmed.split("@");
+    return `${name.slice(0, 3)}***@${domain}`;
+  }
+
+  return `${trimmed.slice(0, 4)}***${trimmed.slice(-2)}`;
+}
+
+function getPixLookupFailureMessage({
+  rpcHasPixKey,
+  memberRowsCount,
+  memberRowsWithPixCount,
+  hasSnapshot
+}: {
+  rpcHasPixKey: boolean;
+  memberRowsCount: number;
+  memberRowsWithPixCount: number;
+  hasSnapshot: boolean;
+}) {
+  if (!rpcHasPixKey && memberRowsWithPixCount > 0) {
+    return "A RPC pública não retornou a chave Pix, mas há membro ativo com Pix. Verifique o formato da consulta de membros.";
+  }
+
+  if (!rpcHasPixKey && memberRowsCount === 0) {
+    return "Nenhum membro ativo foi encontrado para o casal deste presente. Verifique o couple_id do presente.";
+  }
+
+  if (!rpcHasPixKey && memberRowsCount > 0 && memberRowsWithPixCount === 0) {
+    return "Membros ativos foram encontrados, mas nenhum deles tem chave Pix preenchida.";
+  }
+
+  if (!hasSnapshot) {
+    return "A chave Pix também não chegou pelo formulário público. Recarregue a página e tente novamente.";
+  }
+
+  return "Nenhuma chave Pix válida foi encontrada para este presente.";
+}
 
 function getStringField(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -76,6 +154,10 @@ function toAmountCents(value: string) {
 
 function mapGiftContributionError(message?: string) {
   const normalizedMessage = message?.toLowerCase() ?? "";
+
+  if (normalizedMessage.includes("schema cache") || normalizedMessage.includes("column")) {
+    return "A tabela de contribuições está desatualizada no Supabase. Rode a migration de presentes Pix.";
+  }
 
   if (normalizedMessage.includes("indispon")) {
     return "Este presente não está mais disponível.";
@@ -666,10 +748,19 @@ export async function createRsvpAction(
 export async function createGiftContributionAction(
   giftId: string,
   siteSlug: string,
+  boundPixKeySnapshot: string,
   _state: SiteEditorActionState,
   formData: FormData
 ): Promise<SiteEditorActionState> {
   const fields = createFieldSnapshot(formData, ["contributorName", "contributorEmail", "amount", "message"]);
+  const pixKeySnapshot = boundPixKeySnapshot.trim() || getStringField(formData, "pixKeySnapshot").trim();
+  console.log("[EverAfter Pix] Iniciando contribuição de presente", {
+    giftId,
+    siteSlug,
+    hasBoundPixKeySnapshot: boundPixKeySnapshot.trim().length > 0,
+    hasFormPixKeySnapshot: getStringField(formData, "pixKeySnapshot").trim().length > 0,
+    pixKeySnapshot: maskPixKey(pixKeySnapshot)
+  });
   const parsed = giftContributionSchema.safeParse({
     contributorName: getStringField(formData, "contributorName"),
     contributorEmail: getStringField(formData, "contributorEmail"),
@@ -678,6 +769,11 @@ export async function createGiftContributionAction(
   });
 
   if (!parsed.success) {
+    console.log("[EverAfter Pix] Validação do formulário falhou", {
+      giftId,
+      fieldErrors: parsed.error.flatten().fieldErrors
+    });
+
     return {
       status: "error",
       message: "Revise os dados para presentear.",
@@ -686,14 +782,44 @@ export async function createGiftContributionAction(
     };
   }
 
-  const supabase = await createSupabaseServerClient();
-  const { data: gift } = await supabase
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdminClient>;
+
+  try {
+    supabaseAdmin = createSupabaseAdminClient();
+  } catch (error) {
+    console.error("[EverAfter Pix] Falha ao criar Supabase admin client", {
+      giftId,
+      error
+    });
+
+    return {
+      status: "error",
+      message: "A configuração privada do Supabase está incompleta para gerar Pix.",
+      fields
+    };
+  }
+
+  const { data: gift } = await supabaseAdmin
     .from("gifts")
-    .select("id, site_id, title")
+    .select("id, site_id, couple_id, status, amount_cents, amount_contributed_cents, quantity_total, allow_partial, title")
     .eq("id", giftId)
     .maybeSingle();
 
-  if (!gift) {
+  const { data: weddingSite, error: weddingSiteError } = gift
+    ? await supabaseAdmin.from("wedding_sites").select("status").eq("id", gift.site_id).maybeSingle()
+    : { data: null, error: null };
+
+  console.log("[EverAfter Pix] Resultado da busca do presente/site", {
+    giftId,
+    giftFound: Boolean(gift),
+    giftStatus: gift?.status,
+    giftSiteId: gift?.site_id,
+    giftCoupleId: gift?.couple_id,
+    weddingSiteStatus: weddingSite?.status,
+    weddingSiteError: weddingSiteError?.message
+  });
+
+  if (!gift || weddingSite?.status !== "published" || gift.status !== "active") {
     return {
       status: "error",
       message: "Este presente não está mais disponível.",
@@ -701,16 +827,87 @@ export async function createGiftContributionAction(
     };
   }
 
-  const { data: paymentProfile } = await supabase.rpc("get_public_wedding_payment_profile", {
+  const { data: paymentProfile } = await supabaseAdmin.rpc("get_public_wedding_payment_profile", {
     p_site_id: gift.site_id
   });
-  const paymentProfileRow = (paymentProfile?.[0] as PublicWeddingPaymentProfileRow | undefined) ?? null;
-  const pixKey = paymentProfileRow?.pix_key?.trim() ?? "";
+  const paymentProfileRow = getPaymentProfileRow(paymentProfile);
+  console.log("[EverAfter Pix] Resultado da RPC de perfil Pix", {
+    giftId,
+    siteId: gift.site_id,
+    rawIsArray: Array.isArray(paymentProfile),
+    rawRowsCount: Array.isArray(paymentProfile) ? paymentProfile.length : paymentProfile ? 1 : 0,
+    hasRpcPixKey: Boolean(paymentProfileRow?.pix_key?.trim()),
+    rpcPixKey: maskPixKey(paymentProfileRow?.pix_key),
+    merchantName: paymentProfileRow?.merchant_name
+  });
+
+  const { data: paymentMemberRows, error: paymentMemberRowsError } = await supabaseAdmin
+    .from("couple_members")
+    .select("user_id, role, created_at")
+    .eq("couple_id", gift.couple_id)
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+  const normalizedPaymentMemberRows = (paymentMemberRows as GiftPaymentMemberRow[] | null | undefined) ?? [];
+  const { data: paymentProfiles, error: paymentProfilesError } = normalizedPaymentMemberRows.length
+    ? await supabaseAdmin
+        .from("profiles")
+        .select("id, pix_key, full_name")
+        .in(
+          "id",
+          normalizedPaymentMemberRows.map((row) => row.user_id)
+        )
+    : { data: [], error: null };
+  const profileByUserId = new Map(
+    ((paymentProfiles ?? []) as GiftPaymentLookupRow[]).map((profile) => [profile.id, profile])
+  );
+  const paymentMemberRowsWithPix = normalizedPaymentMemberRows.filter((row) =>
+    profileByUserId.get(row.user_id)?.pix_key?.trim()
+  );
+  console.log("[EverAfter Pix] Resultado da consulta direta de membros", {
+    giftId,
+    coupleId: gift.couple_id,
+    rowsCount: normalizedPaymentMemberRows.length,
+    rowsWithPixCount: paymentMemberRowsWithPix.length,
+    memberQueryError: paymentMemberRowsError?.message,
+    profileQueryError: paymentProfilesError?.message,
+    rows: normalizedPaymentMemberRows.map((row) => {
+      const profile = profileByUserId.get(row.user_id);
+
+      return {
+        userId: row.user_id,
+        role: row.role,
+        hasPixKey: Boolean(profile?.pix_key?.trim()),
+        pixKey: maskPixKey(profile?.pix_key),
+        fullName: profile?.full_name
+      };
+      })
+  });
+  const paymentMemberRow = getFirstPaymentMemberRow(
+    paymentMemberRowsWithPix
+      .sort((left, right) => {
+        const priority = { owner: 1, admin: 2, collaborator: 3 };
+
+        return priority[left.role] - priority[right.role];
+      })
+  );
+  const memberProfile = paymentMemberRow ? profileByUserId.get(paymentMemberRow.user_id) ?? null : null;
+  const pixKey = paymentProfileRow?.pix_key?.trim() || memberProfile?.pix_key?.trim() || pixKeySnapshot;
+  console.log("[EverAfter Pix] Chave Pix escolhida para gerar QR", {
+    giftId,
+    source: paymentProfileRow?.pix_key?.trim() ? "rpc" : memberProfile?.pix_key?.trim() ? "member_query" : pixKeySnapshot ? "snapshot" : "none",
+    hasPixKey: pixKey.length > 0,
+    pixKey: maskPixKey(pixKey)
+  });
 
   if (!pixKey) {
     return {
       status: "error",
-      message: "Nenhum perfil ativo do casal tem chave Pix cadastrada para receber presentes.",
+      message: getPixLookupFailureMessage({
+        rpcHasPixKey: Boolean(paymentProfileRow?.pix_key?.trim()),
+        memberRowsCount: normalizedPaymentMemberRows.length,
+        memberRowsWithPixCount: paymentMemberRowsWithPix.length,
+        hasSnapshot: pixKeySnapshot.length > 0
+      }),
       fields
     };
   }
@@ -718,18 +915,96 @@ export async function createGiftContributionAction(
   const amountCents = toAmountCents(parsed.data.amount);
   const pixPayload = buildPixPayload({
     pixKey,
-    merchantName: paymentProfileRow?.merchant_name || "EverAfter",
+    merchantName: paymentProfileRow?.merchant_name || memberProfile?.full_name || "EverAfter",
     amountCents,
     txid: crypto.randomUUID()
   });
-  const { data: contributionId, error } = await supabase.rpc("present_wedding_gift", {
-    p_gift_id: giftId,
-    p_contributor_name: parsed.data.contributorName,
-    p_contributor_email: emptyToNull(parsed.data.contributorEmail),
-    p_amount_cents: amountCents,
-    p_message: emptyToNull(parsed.data.message),
-    p_pix_payload: pixPayload,
-    p_pix_key_snapshot: pixKey
+  const targetCents = gift.amount_cents * (gift.quantity_total ?? 1);
+  const currentAmountCents = gift.amount_contributed_cents ?? 0;
+  const remainingCents = targetCents - currentAmountCents;
+
+  if (remainingCents <= 0) {
+    await supabaseAdmin
+      .from("gifts")
+      .update({
+        status: "sold_out",
+        quantity_purchased: gift.quantity_total ?? 1
+      })
+      .eq("id", gift.id);
+
+    return {
+      status: "error",
+      message: "Este presente não está mais disponível.",
+      fields
+    };
+  }
+
+  if (!gift.allow_partial && amountCents !== Math.min(gift.amount_cents, remainingCents)) {
+    return {
+      status: "error",
+      message: "Este presente não aceita pagamento parcial.",
+      fields
+    };
+  }
+
+  if (amountCents > remainingCents) {
+    return {
+      status: "error",
+      message: "O valor informado é maior que o saldo disponível para este presente.",
+      fields
+    };
+  }
+
+  const contributionInsert = {
+    couple_id: gift.couple_id,
+    site_id: gift.site_id,
+    gift_id: gift.id,
+    contributor_name: parsed.data.contributorName.trim(),
+    contributor_email: emptyToNull(parsed.data.contributorEmail),
+    amount_cents: amountCents,
+    message: emptyToNull(parsed.data.message),
+    status: "approved",
+    payment_provider: "mock",
+    provider_reference: `mock-${crypto.randomUUID()}`,
+    pix_key_snapshot: pixKey,
+    pix_payload: pixPayload
+  };
+  const { data: firstContribution, error: firstContributionError } = await supabaseAdmin
+    .from("gift_contributions")
+    .insert(contributionInsert)
+    .select("id")
+    .single();
+  const shouldRetryWithoutPixColumns =
+    firstContributionError?.message.includes("schema cache") &&
+    (firstContributionError.message.includes("pix_key_snapshot") || firstContributionError.message.includes("pix_payload"));
+  const { data: fallbackContribution, error: fallbackContributionError } = shouldRetryWithoutPixColumns
+    ? await supabaseAdmin
+        .from("gift_contributions")
+        .insert({
+          couple_id: contributionInsert.couple_id,
+          site_id: contributionInsert.site_id,
+          gift_id: contributionInsert.gift_id,
+          contributor_name: contributionInsert.contributor_name,
+          contributor_email: contributionInsert.contributor_email,
+          amount_cents: contributionInsert.amount_cents,
+          message: contributionInsert.message,
+          status: contributionInsert.status,
+          payment_provider: contributionInsert.payment_provider,
+          provider_reference: contributionInsert.provider_reference
+        })
+        .select("id")
+        .single()
+    : { data: null, error: null };
+  const contribution = fallbackContribution ?? firstContribution;
+  const error = fallbackContributionError ?? (shouldRetryWithoutPixColumns ? null : firstContributionError);
+
+  console.log("[EverAfter Pix] Resultado do registro da contribuição", {
+    giftId,
+    contributionId: contribution?.id,
+    retriedWithoutPixColumns: shouldRetryWithoutPixColumns,
+    firstError: firstContributionError?.message,
+    fallbackError: fallbackContributionError?.message,
+    error: error?.message
   });
 
   if (error) {
@@ -739,6 +1014,23 @@ export async function createGiftContributionAction(
       fields
     };
   }
+
+  const newAmountCents = currentAmountCents + amountCents;
+  const { error: giftUpdateError } = await supabaseAdmin
+    .from("gifts")
+    .update({
+      amount_contributed_cents: newAmountCents,
+      quantity_purchased: Math.min(gift.quantity_total ?? 1, Math.floor(newAmountCents / gift.amount_cents)),
+      status: newAmountCents >= targetCents ? "sold_out" : gift.status
+    })
+    .eq("id", gift.id);
+  console.log("[EverAfter Pix] Resultado da atualização do presente", {
+    giftId,
+    newAmountCents,
+    targetCents,
+    nextStatus: newAmountCents >= targetCents ? "sold_out" : gift.status,
+    error: giftUpdateError?.message
+  });
 
   revalidatePath(`/wedding/${siteSlug}`);
 
@@ -750,7 +1042,7 @@ export async function createGiftContributionAction(
       contributorEmail: parsed.data.contributorEmail ?? "",
       amount: parsed.data.amount,
       message: parsed.data.message ?? "",
-      contributionId: String(contributionId ?? ""),
+      contributionId: String(contribution?.id ?? ""),
       pixPayload
     }
   };

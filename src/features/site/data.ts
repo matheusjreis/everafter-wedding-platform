@@ -64,6 +64,18 @@ type PublicWeddingPaymentProfileRow = {
   merchant_name: string | null;
 };
 
+function getPaymentProfileRow(data: unknown): PublicWeddingPaymentProfileRow | null {
+  if (Array.isArray(data)) {
+    return (data[0] as PublicWeddingPaymentProfileRow | undefined) ?? null;
+  }
+
+  if (data && typeof data === "object" && "pix_key" in data) {
+    return data as PublicWeddingPaymentProfileRow;
+  }
+
+  return null;
+}
+
 export type RsvpEditorData = {
   id: string;
   guestName: string;
@@ -250,7 +262,7 @@ export async function getPublicWeddingSite(slug: string): Promise<PublicWeddingS
     rsvpNote: site.rsvp_note ?? "",
     giftNote: site.gift_note ?? "",
     coupleName: couple?.display_name ?? site.title ?? "Nosso casamento",
-    pixKey: ((paymentProfile?.[0] as PublicWeddingPaymentProfileRow | undefined)?.pix_key ?? "").trim(),
+    pixKey: (getPaymentProfileRow(paymentProfile)?.pix_key ?? "").trim(),
     guests: ((guests ?? []) as PublicWeddingGuestRow[]).map((guest) => ({
       id: guest.id,
       guestName: guest.guest_name,

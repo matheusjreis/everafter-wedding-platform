@@ -53,7 +53,7 @@ function FieldError({ messages }: { messages?: string[] }) {
 }
 
 export function GiftContributionForm({ gift, siteSlug, pixKey }: GiftContributionFormProps) {
-  const giftContributionAction = createGiftContributionAction.bind(null, gift.id, siteSlug);
+  const giftContributionAction = createGiftContributionAction.bind(null, gift.id, siteSlug, pixKey);
   const [state, action] = useActionState(giftContributionAction, initialSiteEditorActionState);
   const [isToastVisible, setIsToastVisible] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -216,6 +216,8 @@ export function GiftContributionForm({ gift, siteSlug, pixKey }: GiftContributio
           }}
           className="grid gap-4 rounded-md border bg-card p-4"
         >
+          <input type="hidden" name="pixKeySnapshot" value={pixKey} />
+
           <div>
             <p className="text-sm font-semibold">Contribuir com este presente</p>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
